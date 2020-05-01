@@ -2,12 +2,17 @@ package main
 
 import (
 	"database/sql"
-	"errors"
+	"io"
 	"log"
+	"net/http"
 	"os"
-	"time"
+	"text/template"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/paulheg/alaaarm/data"
+
+	"github.com/labstack/echo"
+	"github.com/paulheg/alaaarm/endpoints"
+
 	_ "github.com/mattn/go-sqlite3"
 	//rpio "github.com/stianeikeland/go-rpio"
 )
@@ -15,10 +20,6 @@ import (
 // var (
 // 	inputPin = rpio.Pin(24)
 // )
-
-var (
-	errUserAlreadyExists = errors.New("user already exists")
-)
 
 const (
 	apiKeyEnvKey = "ALARM_TELEGRAM_BOT_API_KEY"
@@ -36,7 +37,7 @@ const (
 
 func main() {
 
-	// open database
+	// database setup
 	db, err := sql.Open("sqlite3", "./database.db")
 	if err != nil {
 		log.Panic(err)
@@ -45,183 +46,91 @@ func main() {
 
 	db.SetMaxOpenConns(1)
 
-	// log.Println("opening gpio")
+	// userdata
+	userdata := data.NewTelegramUserData(db)
+
+	// telegram setup
+	telegramAPIKey := os.Getenv(apiKeyEnvKey)
+	if len(telegramAPIKey) <= 0 {
+		log.Fatal("Telegram API-Key is not present, set the Key to the environment variable ", apiKeyEnvKey)
+	}
+
+	telegram := endpoints.NewTelegramEndpoint(telegramAPIKey, userdata)
+	go telegram.Run()
+
+	// webservice setup
+	t := &Template{
+		templates: template.Must(template.ParseGlob("web/templates/*.html")),
+	}
+
+	e := echo.New()
+	e.Renderer = t
+	e.GET("/", webHandler)
+	e.Static("/static", "web/static")
+
+	e.POST("/sendtoall", func(c echo.Context) error {
+		message := c.FormValue("message")
+		if len(message) > 0 {
+			err := telegram.NotifyAll(message)
+			if err != nil {
+				return c.JSON(http.StatusOK, errorResponseMessage(err.Error()))
+			}
+			return c.JSON(http.StatusOK, successResponseMessage("Messages were sent."))
+		}
+
+		return c.JSON(http.StatusOK, errorResponseMessage("Message was empty."))
+	})
+	e.POST("/delete", func(c echo.Context) error {
+		//id := c.FormValue("userid")
+
+		userdata.DeleteUser(1)
+
+		return nil
+	})
+	e.POST("/authorize", func(c echo.Context) error {
+		return nil
+	})
+
+	e.Logger.Fatal(e.Start(":8080"))
+
+	// listen to event
+	//telegram.NotifyAll("Alaaaarm")
+
 	// err := rpio.Open()
 	// if err != nil {
 	// 	log.panic("unable to open gpio", err.Error())
 	// }
 
 	// defer rpio.Close()
-
-	// connect to telegram
-	telegramAPIKey := os.Getenv(apiKeyEnvKey)
-	if len(telegramAPIKey) <= 0 {
-		log.Fatal("Telegram API-Key is not present, set the Key to the environment variable ", apiKeyEnvKey)
-	}
-
-	bot, err := tgbotapi.NewBotAPI(telegramAPIKey)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	bot.Debug = true
-
-	log.Printf("Authorized on account %s", bot.Self.UserName)
-
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates, err := bot.GetUpdatesChan(u)
-
-	// Optional: wait for updates and clear them if you don't want to handle
-	// a large backlog of old messages
-	time.Sleep(time.Millisecond * 500)
-	updates.Clear()
-
-	for update := range updates {
-		if update.Message == nil {
-			continue
-		}
-		// Add logic here
-
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-
-		//userId := update.Message.From.ID
-
-		// commands
-		switch update.Message.Text {
-		case "/subscribe":
-			err := addUser(db, update.Message.Chat.ID, update.Message.Chat.UserName)
-			var response string
-			if err == errUserAlreadyExists {
-				response = "Du existierst bereits in der Datenbank."
-			} else {
-				response = "Du wirst für eine Authorisierung überprüft."
-			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
-			bot.Send(msg)
-
-		case "/unsubscribe":
-			err := deleteUser(db, update.Message.Chat.ID)
-			var response string
-			if err != nil {
-				response = "Beim versuch dich aus der Datenbank zu entfernen ist ein fehler aufgetreten. Versuche später noch einmal."
-			} else {
-				response = "Du wirst in Zukunft nicht mehr alarmiert."
-			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
-			bot.Send(msg)
-
-		case "/status":
-			var response string
-			authorized := isAuthorized(db, update.Message.Chat.ID)
-			if authorized {
-				response = "Du wird beim nächsten Alarm alarmiert."
-			} else {
-				response = "Du wirst nicht alarmiert, entweder hast du noch nicht aboniert, oder wurdest noch nicht freigeschaltet."
-			}
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
-			bot.Send(msg)
-
-		default:
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Damit kann ich dir leider nicht helfen.")
-			msg.ReplyToMessageID = update.Message.MessageID
-
-			bot.Send(msg)
-		}
-
-	}
-
 }
 
-func addUser(db *sql.DB, id int64, username string) error {
-	if userExists(db, id) {
-		return errUserAlreadyExists
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = tx.Exec("insert into USERDATA(ID, USERNAME, AUTHORIZED) values(?, ?, ?)", id, username, false)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tx.Commit()
-	return nil
+type Template struct {
+	templates *template.Template
 }
 
-func deleteUser(db *sql.DB, id int64) error {
-	tx, err := db.Begin()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = tx.Exec("delete from USERDATA where USERDATA.ID = ?", id)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tx.Commit()
-	return nil
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-func isAuthorized(db *sql.DB, id int64) bool {
-	row := db.QueryRow("select AUTHORIZED from USERDATA where USERDATA.ID = ? limit 1", id)
-
-	var authorized bool = false
-
-	err := row.Scan(&authorized)
-
-	if err != nil && err != sql.ErrNoRows {
-		log.Fatal(err)
-	}
-
-	return authorized
+func webHandler(c echo.Context) error {
+	return c.Render(http.StatusOK, "main", nil)
 }
 
-func userExists(db *sql.DB, ID int64) bool {
-	err := db.QueryRow("select ID from USERDATA where USERDATA.ID = ? limit 1", ID).Scan(&ID)
-
-	if err != nil {
-		if err != sql.ErrNoRows {
-			log.Fatal(err)
-		}
-
-		return false
+func errorResponseMessage(message string) responseMessage {
+	return responseMessage{
+		Type:    "error",
+		Message: message,
 	}
-
-	return true
 }
 
-func notifyAll(db *sql.DB, bot *tgbotapi.BotAPI, msg string) {
-	rows, err := db.Query("select ID from USERDATA where USERDATA.AUTHORIZED = 1")
-	if err != nil {
-		log.Fatal(err)
+func successResponseMessage(message string) responseMessage {
+	return responseMessage{
+		Type:    "success",
+		Message: message,
 	}
-	defer rows.Close()
+}
 
-	for rows.Next() {
-		var ID int64
-		err := rows.Scan(&ID)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		msg := tgbotapi.NewMessage(ID, msg)
-		_, err = bot.Send(msg)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+type responseMessage struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
 }
