@@ -9,7 +9,7 @@ import (
 
 func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 
-	return t.newSelectDialog("invite", func(alert models.Alert) (string, error) {
+	return t.newSelectAlertDialog("invite", func(update Update, alert models.Alert) (string, error) {
 		invite, err := t.data.CreateInvitation(alert)
 		if err != nil {
 			return "", err

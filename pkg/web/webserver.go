@@ -1,30 +1,41 @@
 package web
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/gofiber/fiber"
 	"github.com/paulheg/alaaarm/pkg/endpoints"
+	"github.com/paulheg/alaaarm/pkg/models"
 )
 
-// Webserver represents the webinterface for this application
-type Webserver struct {
+// Webserver interface
+type Webserver interface {
+	InitializeWebserver() error
+	Run(wg *sync.WaitGroup) error
+	Quit() error
+	AlertTriggerURL(alert models.Alert, message string) string
+}
+
+// FiberWebserver represents the fiber webinterface for this application
+type FiberWebserver struct {
 	config   Configuration
 	server   *fiber.App
 	endpoint endpoints.Endpoint
 }
 
 // NewWebserver creates a new Webserver
-func NewWebserver(config Configuration, endpoint endpoints.Endpoint) *Webserver {
+func NewWebserver(config Configuration, endpoint endpoints.Endpoint) Webserver {
 
 	webApp := fiber.New(&fiber.Settings{
 		DisableStartupMessage: true,
 		CaseSensitive:         true,
 	})
 
-	return &Webserver{
+	return &FiberWebserver{
 		endpoint: endpoint,
 		server:   webApp,
 	}
@@ -32,7 +43,7 @@ func NewWebserver(config Configuration, endpoint endpoints.Endpoint) *Webserver 
 }
 
 // InitializeWebserver initializes the webserver
-func (w *Webserver) InitializeWebserver() error {
+func (w *FiberWebserver) InitializeWebserver() error {
 
 	// REST API
 	api := w.server.Group("/api")
@@ -81,12 +92,19 @@ func (w *Webserver) InitializeWebserver() error {
 }
 
 // Run runs the webserver
-func (w *Webserver) Run(wg *sync.WaitGroup) error {
+func (w *FiberWebserver) Run(wg *sync.WaitGroup) error {
 	defer wg.Done()
 	return w.server.Listen(8080)
 }
 
 // Quit shuts down the webserver
-func (w *Webserver) Quit() error {
+func (w *FiberWebserver) Quit() error {
 	return w.server.Shutdown()
+}
+
+// AlertTriggerURL creates an URL to trigger the given alert
+func (w *FiberWebserver) AlertTriggerURL(alert models.Alert, message string) string {
+	message = url.QueryEscape(message)
+
+	return fmt.Sprintf("https://%s/api/v1/alert/%s/trigger?m=%s", w.config.Domain, alert.Token, message)
 }

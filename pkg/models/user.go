@@ -15,3 +15,11 @@ type User struct {
 func (u *User) TableName() string {
 	return "USER"
 }
+
+// NewUser creates a new user struct
+func NewUser(telegramID int64, username string) User {
+	return User{
+		Username:   username,
+		TelegramID: telegramID,
+	}
+}

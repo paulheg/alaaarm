@@ -24,6 +24,8 @@ type Data interface {
 
 	GetUserAlerts(userID uint) ([]models.Alert, error)
 	GetUserTelegramAlerts(telegramID int64) ([]models.Alert, error)
+	GetUserSubscribedAlerts(userID uint) ([]models.Alert, error)
+
 	AddUserToAlert(alert models.Alert, user models.User) error
 	RemoveUserFromAlert(alert models.Alert, user models.User) error
 

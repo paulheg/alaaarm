@@ -12,22 +12,23 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
 
-func (t *Telegram) newSelectDialog(command string, onSelection func(alert models.Alert) (string, error)) *dialog.Dialog {
+func (t *Telegram) newSelectAlertDialog(command string, onSelection func(update Update, alert models.Alert) (string, error)) *dialog.Dialog {
 
 	return dialog.Chain(
 		func(i interface{}, ctx dialog.ValueStore) error {
 
-			update := i.(tgbotapi.Update)
+			update := i.(Update)
 
-			if !update.Message.IsCommand() || update.Message.Command() != command {
+			if update.Update.Message.Command() != command {
 				return dialog.ErrNoMatch
 			}
 
-			alerts, err := t.data.GetUserTelegramAlerts(update.Message.Chat.ID)
-
+			alerts, err := t.data.GetUserTelegramAlerts(update.ChatID)
 			if err != nil {
 				return err
 			}
+
+			msg := tgbotapi.NewMessage(update.ChatID, "")
 
 			if len(alerts) > 0 {
 				// build keyboard
@@ -37,15 +38,12 @@ func (t *Telegram) newSelectDialog(command string, onSelection func(alert models
 					buttons = append(buttons, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)))...)
 				}
 
-				keyboard := tgbotapi.NewReplyKeyboard(buttons)
-
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Select the alert")
-				msg.ReplyMarkup = keyboard
-
+				msg.Text = "Select the alert"
+				msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
 				t.bot.Send(msg)
 			} else {
 
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "You dont have any alerts jet.")
+				msg.Text = "You dont have any alerts jet."
 				t.bot.Send(msg)
 				return dialog.ErrReset
 			}
@@ -54,9 +52,9 @@ func (t *Telegram) newSelectDialog(command string, onSelection func(alert models
 		}).Chain(
 		func(i interface{}, ctx dialog.ValueStore) error {
 
-			update := i.(tgbotapi.Update)
+			update := i.(Update)
 
-			alerts, err := t.data.GetUserTelegramAlerts(update.Message.Chat.ID)
+			alerts, err := t.data.GetUserTelegramAlerts(update.ChatID)
 
 			if err != nil {
 				return err
@@ -65,7 +63,7 @@ func (t *Telegram) newSelectDialog(command string, onSelection func(alert models
 			var alert models.Alert
 			foundAlert := false
 
-			alertIdentifier := update.Message.Text
+			alertIdentifier := update.Text
 			for _, alert = range alerts {
 				if userFriendlyAlertIdentifier(alert) == alertIdentifier {
 					foundAlert = true
@@ -75,27 +73,25 @@ func (t *Telegram) newSelectDialog(command string, onSelection func(alert models
 
 			if foundAlert {
 
-				response, err := onSelection(alert)
+				response, err := onSelection(update, alert)
 				if err != nil {
 					return err
 				}
 
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
+				msg := tgbotapi.NewMessage(update.ChatID, response)
+
+				// reset keyboard
 				msg.ReplyMarkup = tgbotapi.ReplyKeyboardHide{
 					HideKeyboard: true,
 				}
 				msg.ParseMode = tgbotapi.ModeMarkdown
 				t.bot.Send(msg)
 			} else {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Could not find the alert you selected")
+				// return error, to select again
+				msg := tgbotapi.NewMessage(update.ChatID, "Could not find the alert you selected")
 				t.bot.Send(msg)
 				return err
 			}
-
-			// get alert object and write to value store
-			// reset keyboard
-
-			// return error, to select again
 
 			return nil
 		})

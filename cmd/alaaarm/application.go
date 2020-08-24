@@ -27,7 +27,7 @@ type Application struct {
 	config   *Configuration
 	data     data.Data
 	telegram *telegram.Telegram
-	web      *web.Webserver
+	web      web.Webserver
 }
 
 func newApplication() *Application {

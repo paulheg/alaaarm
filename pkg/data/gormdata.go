@@ -166,6 +166,21 @@ func (d *gormdata) GetUserAlerts(userID uint) ([]models.Alert, error) {
 	return alerts, result.Error
 }
 
+func (d *gormdata) GetUserSubscribedAlerts(userID uint) ([]models.Alert, error) {
+	var alerts []models.Alert
+
+	var query string = `SELECT *
+FROM ALERT
+INNER JOIN ALERT_RECEIVER ON ALERT.id = ALERT_RECEIVER.alert_id
+WHERE ALERT_RECEIVER.user_id = ?
+AND ALERT.deleted_at IS NULL
+`
+
+	result := d.db.Raw(query, userID).Scan(&alerts)
+
+	return alerts, result.Error
+}
+
 func (d *gormdata) GetUserTelegramAlerts(telegramID int64) ([]models.Alert, error) {
 	var alerts []models.Alert
 
@@ -208,8 +223,7 @@ func (d *gormdata) GetInvitation(token string) (bool, models.Invite, error) {
 	var invite models.Invite
 
 	result := d.db.First(&invite, "Token = ?", token).
-		Related(&invite.Alert, "AlertID").
-		Related(&invite.Alert.Owner, "OwnerID")
+		Related(&invite.Alert, "AlertID")
 
 	return !result.RecordNotFound(), invite, result.Error
 }

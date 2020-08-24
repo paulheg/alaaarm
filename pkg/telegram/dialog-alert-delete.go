@@ -6,7 +6,7 @@ import (
 )
 
 func (t *Telegram) newDeleteDialog() *dialog.Dialog {
-	return t.newSelectDialog("delete", func(alert models.Alert) (string, error) {
+	return t.newSelectAlertDialog("delete", func(update Update, alert models.Alert) (string, error) {
 
 		err := t.data.DeleteAlert(alert)
 		if err != nil {

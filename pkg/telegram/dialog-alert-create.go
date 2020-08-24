@@ -18,30 +18,31 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 	return dialog.Chain(
 		func(i interface{}, ctx dialog.ValueStore) error {
 			var err error
+			update := i.(Update)
 
-			// answer with creating options
-			update := i.(tgbotapi.Update)
-
-			if update.Message.IsCommand() && update.Message.Command() == "create" {
-				response := "Creating a new alert\n\n" +
-					"Send me the name of the new alert."
-
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
-				msg.ParseMode = tgbotapi.ModeMarkdown
-				t.bot.Send(msg)
-			} else {
-				err = dialog.ErrNoMatch
+			if update.Update.Message.Command() != "create" {
+				return dialog.ErrNoMatch
 			}
+
+			// ask for the name of the alert
+			response := "Creating a new alert\n\n" +
+				"Send me the name of the new alert."
+
+			msg := tgbotapi.NewMessage(update.ChatID, response)
+			msg.ParseMode = tgbotapi.ModeMarkdown
+			t.bot.Send(msg)
 
 			return err
 		},
 	).Chain(
 		func(i interface{}, ctx dialog.ValueStore) error {
 			var err error
+			update := i.(Update)
 
 			// get name
-			update := i.(tgbotapi.Update)
-			name := strings.TrimSpace(update.Message.Text)
+			name := strings.TrimSpace(update.Text)
+
+			msg := tgbotapi.NewMessage(update.ChatID, "")
 
 			// check if name matches the defined pattern
 			if namePattern.MatchString(name) {
@@ -50,18 +51,18 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 					Name: name,
 				})
 
-				response := fmt.Sprintf(
+				msg.Text = fmt.Sprintf(
 					"The name of your new notification is *%s*.\n"+
 						"Now give it a description:",
 					name)
 
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
 				msg.ParseMode = tgbotapi.ModeMarkdown
-				t.bot.Send(msg)
 			} else {
-				err = errInvalidName
+				msg.Text = "The profided name does not match the guidelines."
+				t.bot.Send(msg)
 			}
 
+			err = errInvalidName
 			return err
 		},
 	).Chain(
@@ -69,8 +70,10 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 			var err error
 
 			// get description
-			update := i.(tgbotapi.Update)
-			description := strings.TrimSpace(update.Message.Text)
+			update := i.(Update)
+			description := strings.TrimSpace(update.Text)
+
+			msg := tgbotapi.NewMessage(update.Update.Message.Chat.ID, "")
 
 			// check if matches the description pattern
 			if descriptionPattern.MatchString(description) {
@@ -83,89 +86,74 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 					// store new description in context
 					ctx.Set("alert", newAlert)
 
-					response := fmt.Sprintf(
+					msg.Text = fmt.Sprintf(
 						"Creating new alert:\n\n"+
 							"Name: *%q*\n"+
 							"Description: *%q*\n\n"+
 							"Create: Yes/No",
 						newAlert.Name, newAlert.Description)
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
 					msg.ReplyMarkup = yesNoMenuKeyboard
 					msg.ParseMode = tgbotapi.ModeMarkdown
-					t.bot.Send(msg)
-
 				} else {
 					err = errContextDataMissing
+					msg.Text = err.Error()
 				}
 			} else {
 				err = errInvalidDescription
+				msg.Text = err.Error()
 			}
 
+			t.bot.Send(msg)
 			return err
 		},
 	).Chain(
 		func(i interface{}, ctx dialog.ValueStore) error {
-			update := i.(tgbotapi.Update)
-			var response string
+			update := i.(Update)
 			var err error
 
+			msg := tgbotapi.NewMessage(update.ChatID, "")
+
 			// check if yes was selected
-			if update.Message.Text == "Yes" {
+			if update.Update.Message.Text == "Yes" {
 				newAlert, ok := ctx.Value("alert").(models.Alert)
 				if ok {
 					// create new alert now
+					owner := update.User
 
-					// get user from telegramID or create one if does not exist
-					var owner models.User
-					exists, owner, err := t.data.GetUserTelegram(update.Message.Chat.ID)
-					if !exists {
-						owner, err = t.data.CreateUser(models.User{
-							Username:   update.Message.Chat.UserName,
-							TelegramID: update.Message.Chat.ID,
-						})
-					}
+					a, err := t.data.CreateAlert(
+						newAlert.Name,
+						newAlert.Description,
+						owner,
+					)
 
 					if err != nil {
-						// something went wrong in the database
-						response = "Could not find or create a user, please try again."
-
-					} else {
-						a, err := t.data.CreateAlert(
-							newAlert.Name,
-							newAlert.Description,
-							owner)
-
-						if err == nil {
-							triggerURL := fmt.Sprintf("http://st1cker.com/api/v1/alert/%s/trigger?m=HelloWorld", a.Token)
-
-							response = fmt.Sprintf(
-								"New alert was created\n\n"+
-									"To trigger the alarm send a GET request to the follwing URL:\n\n"+
-									"[%s](%s)",
-								triggerURL, triggerURL)
-						} else {
-							// something went wrong in the database
-							response = "Could not create the alert, please try again."
-						}
+						msg.Text = "Could not create the alert, please try again."
+						t.bot.Send(msg)
+						return err
 					}
+
+					triggerURL := t.webserver.AlertTriggerURL(a, "Hello World")
+
+					msg.Text = fmt.Sprintf(
+						"New alert was created\n\n"+
+							"To trigger the alarm send a GET request to the follwing URL:\n\n"+
+							"[%s](%s)",
+						triggerURL, triggerURL)
 
 				} else {
 					err = errContextDataMissing
+					msg.Text = err.Error()
 				}
-
-			} else if update.Message.Text == "No" {
-				response = "Alert is discarded."
-				// cancel all actions
+			} else if update.Update.Message.Text == "No" {
+				msg.Text = "Alert is discarded."
+				ctx.Set("alert", nil)
 			}
 
-			if len(response) > 0 {
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, response)
-				msg.ReplyMarkup = tgbotapi.ReplyKeyboardHide{
-					HideKeyboard: true,
-				}
-				msg.ParseMode = tgbotapi.ModeMarkdown
-				t.bot.Send(msg)
+			msg.ReplyMarkup = tgbotapi.ReplyKeyboardHide{
+				HideKeyboard: true,
 			}
+			msg.ParseMode = tgbotapi.ModeMarkdown
+			t.bot.Send(msg)
 
 			return err
 		},

@@ -12,6 +12,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/paulheg/alaaarm/pkg/data"
 	"github.com/paulheg/alaaarm/pkg/dialog"
+	"github.com/paulheg/alaaarm/pkg/models"
+	"github.com/paulheg/alaaarm/pkg/web"
 )
 
 var (
@@ -39,8 +41,8 @@ type Telegram struct {
 	config       Configuration
 	bot          *tgbotapi.BotAPI
 	data         data.Data
+	webserver    web.Webserver
 	conversation *dialog.Manager
-	quit         chan bool
 }
 
 // NewTelegram creates a new instance of a Telegram
@@ -58,7 +60,6 @@ func NewTelegram(config Configuration, data data.Data) *Telegram {
 	tg := &Telegram{
 		bot:    bot,
 		data:   data,
-		quit:   make(chan bool),
 		config: config,
 	}
 
@@ -80,7 +81,6 @@ func NewTelegram(config Configuration, data data.Data) *Telegram {
 // Quit shuts down the telegram bot
 func (t *Telegram) Quit() error {
 	t.bot.StopReceivingUpdates()
-	t.quit <- true
 
 	return nil
 }
@@ -103,12 +103,6 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	updates.Clear()
 
 	for update := range updates {
-
-		// TODO: FIX THIS
-		// if <-t.quit {
-		// 	break
-		// }
-
 		t.processUpdate(update)
 	}
 
@@ -117,11 +111,25 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 }
 
 func (t *Telegram) processUpdate(update tgbotapi.Update) {
-	var msg tgbotapi.MessageConfig
 
 	if update.Message != nil {
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-		msg = tgbotapi.NewMessage(update.Message.Chat.ID, "")
+
+		// create user if it does not exist
+		exists, user, err := t.data.GetUserTelegram(update.Message.Chat.ID)
+		if !exists || err != nil {
+			user, err = t.data.CreateUser(models.NewUser(
+				update.Message.Chat.ID,
+				update.Message.Chat.UserName,
+			))
+		}
+
+		dialogUpdate := Update{
+			Update: update,
+			User:   user,
+			Text:   update.Message.Text,
+			ChatID: update.Message.Chat.ID,
+		}
 
 		// commands
 		switch update.Message.Text {
@@ -130,16 +138,19 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 			t.conversation.Reset(update.Message.Chat.ID)
 
 			// reset keyboard
-			msg.Text = "You are back at the start. Send me a command to continue."
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"You are back at the start. Send me a command to continue.",
+			)
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
 			t.bot.Send(msg)
 			break
 		case "":
 			break
 		default:
-			err := t.conversation.Next(update, update.Message.Chat.ID)
+			err := t.conversation.Next(dialogUpdate, update.Message.Chat.ID)
 			if err != nil {
-				log.Printf("Telegram user(%s) error: %s", update.Message.Chat.UserName, err.Error())
+				log.Printf("Telegram user(%s) error: %s", user.Username, err.Error())
 			}
 		}
 	}
