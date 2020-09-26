@@ -44,5 +44,5 @@ func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 }
 
 func (t *Telegram) invitationURL(invite models.Invite) string {
-	return fmt.Sprintf("https://t.me/%s?start=%s", t.config.Name, invite.Token)
+	return fmt.Sprintf("https://t.me/%s?start=%s", t.bot.Self.UserName, invite.Token)
 }

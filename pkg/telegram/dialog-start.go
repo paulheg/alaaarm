@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/paulheg/alaaarm/pkg/dialog"
@@ -20,6 +21,7 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 		invitationKey := u.Update.Message.CommandArguments()
+		invitationKey = strings.TrimSpace(invitationKey)
 
 		if len(invitationKey) == 0 {
 			// normal start command

@@ -72,6 +72,7 @@ func NewTelegram(config *Configuration, data data.Data, webserver web.Webserver)
 		tg.newAlertInviteDialog(),
 		tg.newAlertInfoDialog(),
 		tg.newAlertUnsubscribeDialog(),
+		tg.newChangeDialogTokenDialog(),
 	)
 
 	tg.conversation = dialog.NewManager(root)
@@ -97,6 +98,8 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
+
+	log.Print("Listening to telegram updates...")
 
 	// Optional: wait for updates and clear them if you don't want to handle
 	// a large backlog of old messages
@@ -131,7 +134,7 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 			ChatID: update.Message.Chat.ID,
 		}
 
-		log.Printf("[%x] %s", dialogUpdate.User.ID, dialogUpdate.Text)
+		log.Printf("Message from User:%x -> %s", dialogUpdate.User.ID, dialogUpdate.Text)
 
 		// commands
 		switch update.Message.Text {

@@ -1,11 +1,9 @@
 package data
 
 import (
-	"github.com/dchest/uniuri"
-	"github.com/jinzhu/gorm"
+	"gorm.io/driver/postgres" // sqlite driver
+	"gorm.io/gorm"
 
-	// sqlite driver
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
@@ -13,11 +11,6 @@ type gormdata struct {
 	db     *gorm.DB
 	config *Configuration
 }
-
-const (
-	inviteTokenLength = 16
-	alertTokenLength  = 32
-)
 
 // NewGormData return Data interface with gorm
 func NewGormData(config *Configuration) Data {
@@ -28,8 +21,6 @@ func NewGormData(config *Configuration) Data {
 }
 
 func (d *gormdata) MigrateDatabase() error {
-	var err error
-
 	tables := make([]interface{}, 0)
 
 	tables = append(tables, models.User{})
@@ -37,23 +28,14 @@ func (d *gormdata) MigrateDatabase() error {
 	tables = append(tables, models.AlertReceiver{})
 	tables = append(tables, models.Invite{})
 
-	for _, table := range tables {
-		if !d.db.HasTable(table) {
-			d.db.CreateTable(table)
-		}
-	}
-
-	result := d.db.AutoMigrate(tables...)
-	err = result.Error
-
-	return err
+	return d.db.AutoMigrate(tables...)
 }
 
 func (d *gormdata) InitDatabase() error {
 	var err error
 
 	// database setup
-	db, err := gorm.Open("sqlite3", d.config.ConnectionString)
+	db, err := gorm.Open(postgres.Open(d.config.ConnectionString), &gorm.Config{})
 	d.db = db
 
 	return err
@@ -72,22 +54,19 @@ func (d *gormdata) CreateAlert(name, description string, owner models.User) (mod
 		return models.Alert{}, ErrMandatoryDataMissing
 	}
 
-	token := uniuri.NewLen(alertTokenLength)
-
 	alert := models.Alert{
 		Name:        name,
 		Description: description,
 		Owner:       owner,
 		OwnerID:     owner.ID,
 		Receiver:    make([]models.User, 0),
-		Token:       token,
 	}
 
-	if d.db.NewRecord(alert) {
-		result := d.db.Create(&alert)
-		return alert, result.Error
-	}
-	return alert, ErrAlreadyExists
+	alert.ChangeToken()
+
+	result := d.db.Create(&alert)
+
+	return alert, result.Error
 }
 
 func (d *gormdata) DeleteAlert(alert models.Alert) error {
@@ -101,6 +80,14 @@ func (d *gormdata) DeleteAlert(alert models.Alert) error {
 	var invite models.Invite
 	result = d.db.Delete(&invite, "id = ?", alert.ID)
 
+	if result.Error != nil {
+		return result.Error
+	}
+
+	// Clear receiver
+	var alertReceiver models.AlertReceiver
+	result = d.db.Delete(&alertReceiver).Where("user_id", alert.OwnerID)
+
 	return result.Error
 }
 
@@ -108,31 +95,25 @@ func (d *gormdata) GetAlertWithToken(token string) (bool, models.Alert, error) {
 	var alert models.Alert
 	//var user models.User
 
-	result := d.db.First(&alert, "Token = ?", token).
-		Related(&alert.Owner, "OwnerID").
-		Related(&alert.Receiver, "Receiver")
+	result := d.db.First(&alert, "Token = ?", token).Preload("Receiver")
 
-	return !result.RecordNotFound(), alert, result.Error
+	return result.RowsAffected > 0, alert, result.Error
 }
 
 func (d *gormdata) GetAlert(id uint) (bool, models.Alert, error) {
 	var alert models.Alert
 
-	result := d.db.First(&alert, "ID = ?", id).
-		Related(&alert.Owner, "OwnerID").
-		Related(&alert.Receiver, "Receiver")
+	result := d.db.First(&alert).Preload("Receiver").Preload("Owner")
 
-	return !result.RecordNotFound(), alert, result.Error
+	return result.RowsAffected > 0, alert, result.Error
 }
 
 func (d *gormdata) RemoveUserFromAlert(alert models.Alert, user models.User) error {
-	result := d.db.Model(&alert).Association("Receiver").Delete(&user)
-	return result.Error
+	return d.db.Model(&alert).Association("Receiver").Delete(&user)
 }
 
 func (d *gormdata) AddUserToAlert(alert models.Alert, user models.User) error {
-	result := d.db.Model(&alert).Association("Receiver").Append(&user)
-	return result.Error
+	return d.db.Model(&alert).Association("Receiver").Append(&user)
 }
 
 // === USER ====
@@ -145,9 +126,9 @@ func (d *gormdata) CreateUser(user models.User) (models.User, error) {
 func (d *gormdata) GetUser(userID uint) (bool, models.User, error) {
 	var user models.User
 
-	result := d.db.Find(&user, "ID = ?", userID)
+	result := d.db.Find(&user, "id = ?", userID)
 
-	return !result.RecordNotFound(), user, result.Error
+	return result.RowsAffected > 0, user, result.Error
 }
 
 func (d *gormdata) GetUserTelegram(telegramID int64) (bool, models.User, error) {
@@ -155,7 +136,7 @@ func (d *gormdata) GetUserTelegram(telegramID int64) (bool, models.User, error) 
 
 	result := d.db.Find(&user, "Telegram_ID = ?", telegramID)
 
-	return !result.RecordNotFound(), user, result.Error
+	return result.RowsAffected > 0, user, result.Error
 }
 
 func (d *gormdata) DeleteUser(userID uint) error {
@@ -170,7 +151,7 @@ func (d *gormdata) DeleteUser(userID uint) error {
 func (d *gormdata) GetUserAlerts(userID uint) ([]models.Alert, error) {
 	var alerts []models.Alert
 
-	result := d.db.Find(&alerts, "owner_id = ?", userID)
+	result := d.db.Find(&alerts, "owner_id = ?", userID).Preload("USER")
 
 	return alerts, result.Error
 }
@@ -178,14 +159,9 @@ func (d *gormdata) GetUserAlerts(userID uint) ([]models.Alert, error) {
 func (d *gormdata) GetUserSubscribedAlerts(userID uint) ([]models.Alert, error) {
 	var alerts []models.Alert
 
-	var query string = `SELECT *
-FROM ALERT
-INNER JOIN ALERT_RECEIVER ON ALERT.id = ALERT_RECEIVER.alert_id
-WHERE ALERT_RECEIVER.user_id = ?
-AND ALERT.deleted_at IS NULL
-`
-
-	result := d.db.Raw(query, userID).Scan(&alerts)
+	result := d.db.Find(&alerts).
+		Joins("INNER JOIN ALERT_RECEIVER on ALERT.id = ALERT_RECEIVER.alert_id").
+		Where("ALERT_RECEIVER.user_id = ?", userID)
 
 	return alerts, result.Error
 }
@@ -193,22 +169,18 @@ AND ALERT.deleted_at IS NULL
 func (d *gormdata) GetUserTelegramAlerts(telegramID int64) ([]models.Alert, error) {
 	var alerts []models.Alert
 
-	var query string = `SELECT *
-FROM ALERT
-INNER JOIN USER ON ALERT.owner_id = USER.id
-WHERE USER.telegram_id = ?
-AND ALERT.deleted_at IS NULL`
-
-	result := d.db.Raw(query, telegramID).Scan(&alerts)
+	result := d.db.Find(&alerts).
+		Joins("INNER JOIN USER on USER.id = ALERT.owner_id").
+		Where("USER.telegram_id", telegramID)
 
 	return alerts, result.Error
 }
 
 func (d *gormdata) UpdateAlertToken(alert models.Alert) (models.Alert, error) {
-	newToken := uniuri.NewLen(alertTokenLength)
 
-	alert.Token = newToken
-	result := d.db.Update(alert)
+	alert.ChangeToken()
+
+	result := d.db.Update("token", &alert)
 
 	return alert, result.Error
 }
@@ -216,12 +188,12 @@ func (d *gormdata) UpdateAlertToken(alert models.Alert) (models.Alert, error) {
 // === INVITES ===
 
 func (d *gormdata) CreateInvitation(alert models.Alert) (models.Invite, error) {
-	token := uniuri.NewLen(inviteTokenLength)
 
 	invite := models.Invite{
 		Alert: alert,
-		Token: token,
 	}
+
+	invite.GenerateToken()
 
 	result := d.db.Create(&invite)
 
@@ -231,8 +203,9 @@ func (d *gormdata) CreateInvitation(alert models.Alert) (models.Invite, error) {
 func (d *gormdata) GetInvitation(token string) (bool, models.Invite, error) {
 	var invite models.Invite
 
-	result := d.db.First(&invite, "Token = ?", token).
-		Related(&invite.Alert, "AlertID")
+	result := d.db.First(&invite).
+		Where("ALERT.token = ?", token).
+		Preload("Alert")
 
-	return !result.RecordNotFound(), invite, result.Error
+	return result.RowsAffected > 0, invite, result.Error
 }

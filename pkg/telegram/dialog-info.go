@@ -45,7 +45,7 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 				msg.Text += fmt.Sprintf("- %s\n", alert.Name)
 			}
 		} else {
-			msg.Text += "You have not subscribed to any alerts jet."
+			msg.Text += "You have not subscribed to any alerts yet."
 		}
 
 		t.bot.Send(msg)

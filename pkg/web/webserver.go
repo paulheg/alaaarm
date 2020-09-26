@@ -36,7 +36,7 @@ type FiberWebserver struct {
 // NewWebserver creates a new Webserver
 func NewWebserver(config *Configuration) Webserver {
 
-	webApp := fiber.New(&fiber.Settings{
+	webApp := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 		CaseSensitive:         true,
 	})
@@ -63,11 +63,13 @@ func (w *FiberWebserver) InitializeWebserver() error {
 
 	alert := v1.Group("/alert/:token")
 
-	alert.Get("/trigger", func(c *fiber.Ctx) {
+	alert.Get("/trigger", func(c *fiber.Ctx) error {
 		var err error
 
 		token := c.Params("token")
 		message := c.Query("m")
+
+		log.Printf("Triggering %s with message %s", token, message)
 
 		if e, ok := w.endpoints["telegram"]; ok {
 			err = e.NotifyAll(token, message, nil)
@@ -77,22 +79,20 @@ func (w *FiberWebserver) InitializeWebserver() error {
 
 		if err != nil {
 			log.Println(err.Error())
-			c.Status(http.StatusInternalServerError).SendString(err.Error())
-			return
+			return c.Status(http.StatusInternalServerError).SendString(err.Error())
 		}
 
-		c.SendStatus(http.StatusOK)
+		return c.SendStatus(http.StatusOK)
 	})
 
-	alert.Post("/trigger", func(c *fiber.Ctx) {
+	alert.Post("/trigger", func(c *fiber.Ctx) error {
 		token := c.Params("token")
 		message := c.Query("m")
 
 		file, err := c.FormFile("file")
 		if err != nil {
 			log.Println(err.Error())
-			c.Status(http.StatusInternalServerError).SendString(err.Error())
-			return
+			return c.Status(http.StatusInternalServerError).SendString(err.Error())
 		}
 
 		if e, ok := w.endpoints["telegram"]; ok {
@@ -103,11 +103,10 @@ func (w *FiberWebserver) InitializeWebserver() error {
 
 		if err != nil {
 			log.Println(err.Error())
-			c.Status(http.StatusInternalServerError).SendString(err.Error())
-			return
+			return c.Status(http.StatusInternalServerError).SendString(err.Error())
 		}
 
-		c.SendStatus(http.StatusOK)
+		return c.SendStatus(http.StatusOK)
 	})
 
 	return nil
@@ -116,7 +115,10 @@ func (w *FiberWebserver) InitializeWebserver() error {
 // Run runs the webserver
 func (w *FiberWebserver) Run(wg *sync.WaitGroup) error {
 	defer wg.Done()
-	return w.server.Listen(8080)
+
+	log.Println("Webserver listening...")
+
+	return w.server.Listen(":" + w.config.Port)
 }
 
 // Quit shuts down the webserver

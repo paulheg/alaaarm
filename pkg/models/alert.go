@@ -2,11 +2,11 @@ package models
 
 import (
 	"github.com/dchest/uniuri"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 const (
-	tokenLength = 32
+	alertTokenLength = 32
 )
 
 // Alert represents a custom alert to send notifications to
@@ -27,6 +27,6 @@ func (a *Alert) TableName() string {
 
 // ChangeToken updates the token with a new random value
 func (a *Alert) ChangeToken() {
-	newToken := uniuri.NewLen(tokenLength)
+	newToken := uniuri.NewLen(alertTokenLength)
 	a.Token = newToken
 }

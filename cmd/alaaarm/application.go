@@ -1,19 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/paulheg/alaaarm/pkg/data"
 	"github.com/paulheg/alaaarm/pkg/telegram"
 	"github.com/paulheg/alaaarm/pkg/web"
-)
-
-// TODO: Replace with configuration file
-const (
-	telegramAPIKeyEnvKey = "ALARM_TELEGRAM_BOT_API_KEY"
 )
 
 var (
@@ -36,6 +32,18 @@ type Configuration struct {
 	Data     *data.Configuration
 }
 
+var defaultConfig = &Configuration{
+	Data: &data.Configuration{
+		ConnectionString: "./database.db",
+	},
+	Telegram: &telegram.Configuration{
+		APIKey: "TelegramApiKey",
+	},
+	Web: &web.Configuration{
+		Domain: "example.com",
+	},
+}
+
 func newApplication() *Application {
 
 	a := &Application{}
@@ -46,26 +54,37 @@ func newApplication() *Application {
 // LoadConfiguration loads the configuration file
 func (a *Application) LoadConfiguration(path string) error {
 
-	//TODO: read file
+	log.Println("Reading configuration")
 
-	// telegram setup
-	telegramAPIKey := os.Getenv(telegramAPIKeyEnvKey)
-	if len(telegramAPIKey) <= 0 {
-		log.Fatal("Telegram API-Key is not present, set the Key to the environment variable ", telegramAPIKeyEnvKey)
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	config := defaultConfig
+	err = json.Unmarshal(file, &config)
+	if err != nil {
+		return err
 	}
 
-	a.config = &Configuration{
-		Web: &web.Configuration{
-			Domain: "alaaarm.me",
-		},
-		Telegram: &telegram.Configuration{
-			APIKey: telegramAPIKey,
-			Name:   "AlaarmAlaaarmBot",
-		},
-		Data: &data.Configuration{
-			ConnectionString: "../../database.db",
-		},
+	a.config = config
+	log.Println("Configuration was succesfully loaded")
+	return nil
+}
+
+// CreateConfiguration creates the defaul configuration file
+func (a *Application) CreateConfiguration(path string) error {
+
+	fileContent, err := json.Marshal(&defaultConfig)
+	if err != nil {
+		return err
 	}
+
+	err = ioutil.WriteFile(path, fileContent, 0755)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("The default configuration file was written to %s", path)
 
 	return nil
 }

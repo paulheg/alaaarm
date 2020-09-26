@@ -7,7 +7,7 @@ import (
 )
 
 var version = flag.Bool("version", false, "Show alaaarm version")
-var configPath = flag.String("config", "./config.json", "Path to configuration file")
+var configPath = flag.String("config", "./config/config.json", "Path to configuration file")
 
 func main() {
 
@@ -48,17 +48,25 @@ Commands:
 }
 
 func checkCmd() {
+	application := newApplication()
 
+	err := application.LoadConfiguration(*configPath)
+	if err != nil {
+		log.Fatal("An error occured while reading the configuration: ", err)
+	}
+	log.Println("Config file seems correct")
 }
 
 func installCmd() {
+	application := newApplication()
 
+	application.CreateConfiguration(*configPath)
 }
 
 func runCmd() error {
 	application := newApplication()
 
-	err := application.LoadConfiguration("")
+	err := application.LoadConfiguration(*configPath)
 	if err != nil {
 		log.Fatal("An error occured while reading the configuration: ", err)
 	}

@@ -5,14 +5,15 @@ FROM golang AS builder
 COPY . /go/src/github.com/paulheg/alaaarm
 
 # dependency management
-WORKDIR /go/src/github.com/paulheg/alaaarm
-RUN go mod init
+WORKDIR /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/
+RUN go get -d ./...
 
 # build
-RUN CGO_ENABLED=0 GOOS=linux go build -o server -i /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/ 
+RUN CGO_ENABLED=0 GOOS=linux go build -o server /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/ 
 
 FROM alpine:latest
-WORKDIR /root/
+WORKDIR /
 COPY --from=builder ./go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
-ENTRYPOINT [ "server" ]
-EXPOSE 8080
+
+ENTRYPOINT [ "./server" ]
+EXPOSE 3000

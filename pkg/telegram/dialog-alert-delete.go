@@ -22,11 +22,11 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 
 			msg.Text = emoji.Sprintf(`:warning: Do you really want to delete the %s alert.
-No one will not receive any notifications from this alert anymore.
+No one will receive any notifications from this alert anymore.
 HTTP Requests using the token of this alert wont result in a notification.
 
 :warning: This process cannot be reversed.
-Do you wont to delete the alert?`, alert.Name)
+Do you want to delete the alert?`, alert.Name)
 			t.bot.Send(msg)
 
 			return dialog.Next, nil
