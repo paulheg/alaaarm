@@ -12,87 +12,112 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
 
-func (t *Telegram) newSelectAlertDialog(command string, onSelection func(update Update, alert models.Alert) (string, error)) *dialog.Dialog {
+func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
+	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-	return dialog.Chain(
-		func(i interface{}, ctx dialog.ValueStore) error {
+		alerts, err := t.data.GetUserSubscribedAlerts(u.User.ID)
+		if err != nil {
+			return dialog.Reset, err
+		}
 
-			update := i.(Update)
+		msg := tgbotapi.NewMessage(u.ChatID, "")
 
-			if update.Update.Message.Command() != command {
-				return dialog.ErrNoMatch
+		if len(alerts) == 0 {
+			msg.Text = "You are not subscribed to anly alerts jet."
+			t.bot.Send(msg)
+			return dialog.Success, nil
+		}
+
+		ctx.Set("alerts", alerts)
+
+		// build keyboard
+		buttons := make([]tgbotapi.KeyboardButton, 0)
+
+		for _, alert := range alerts {
+			buttons = append(buttons,
+				tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)),
+			)
+		}
+		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
+
+		msg.Text = "Select the alert"
+		t.bot.Send(msg)
+
+		return dialog.Success, nil
+	})).Append(t.alertDetermination())
+}
+
+func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
+
+	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
+
+		alerts, err := t.data.GetUserTelegramAlerts(u.ChatID)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
+		msg := tgbotapi.NewMessage(u.ChatID, "")
+
+		if len(alerts) == 0 {
+			msg.Text = "You dont have any alerts jet."
+			t.bot.Send(msg)
+			return dialog.Reset, nil
+		}
+
+		// save the alerts
+		ctx.Set("alerts", alerts)
+
+		// build keyboard
+		buttons := make([]tgbotapi.KeyboardButton, 0)
+
+		for _, alert := range alerts {
+			buttons = append(buttons, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)))...)
+		}
+		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
+
+		msg.Text = "Select the alert"
+		t.bot.Send(msg)
+
+		return dialog.Success, nil
+	})).Append(t.alertDetermination())
+}
+
+func (t *Telegram) alertDetermination() *dialog.Dialog {
+	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
+
+		alerts, ok := ctx.Value("alerts").([]models.Alert)
+		if !ok {
+			return dialog.Reset, errContextDataMissing
+		}
+
+		var alert models.Alert
+		foundAlert := false
+
+		alertIdentifier := u.Text
+		for _, alert = range alerts {
+			if userFriendlyAlertIdentifier(alert) == alertIdentifier {
+				foundAlert = true
+				break
 			}
+		}
 
-			alerts, err := t.data.GetUserTelegramAlerts(update.ChatID)
-			if err != nil {
-				return err
-			}
+		if !foundAlert {
+			msg := tgbotapi.NewMessage(u.ChatID, "Could not find the alert you selected")
+			t.bot.Send(msg)
+			return dialog.Retry, nil
+		}
 
-			msg := tgbotapi.NewMessage(update.ChatID, "")
+		ctx.Set("alert", alert)
 
-			if len(alerts) > 0 {
-				// build keyboard
-				buttons := make([]tgbotapi.KeyboardButton, 0)
+		msg := tgbotapi.NewMessage(u.ChatID, "")
+		msg.Text = fmt.Sprintf("You selected the '%s' alert.", alert.Name)
 
-				for _, alert := range alerts {
-					buttons = append(buttons, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)))...)
-				}
-
-				msg.Text = "Select the alert"
-				msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
-				t.bot.Send(msg)
-			} else {
-
-				msg.Text = "You dont have any alerts jet."
-				t.bot.Send(msg)
-				return dialog.ErrReset
-			}
-
-			return nil
-		}).Chain(
-		func(i interface{}, ctx dialog.ValueStore) error {
-
-			update := i.(Update)
-
-			alerts, err := t.data.GetUserTelegramAlerts(update.ChatID)
-
-			if err != nil {
-				return err
-			}
-
-			var alert models.Alert
-			foundAlert := false
-
-			alertIdentifier := update.Text
-			for _, alert = range alerts {
-				if userFriendlyAlertIdentifier(alert) == alertIdentifier {
-					foundAlert = true
-					break
-				}
-			}
-
-			if foundAlert {
-
-				response, err := onSelection(update, alert)
-				if err != nil {
-					return err
-				}
-
-				msg := tgbotapi.NewMessage(update.ChatID, response)
-
-				// reset keyboard
-				msg.ReplyMarkup = tgbotapi.ReplyKeyboardHide{
-					HideKeyboard: true,
-				}
-				msg.ParseMode = tgbotapi.ModeMarkdown
-				t.bot.Send(msg)
-			} else {
-				// return error, to select again
-				msg := tgbotapi.NewMessage(update.ChatID, "Could not find the alert you selected")
-				t.bot.Send(msg)
-				return err
-			}
-
-			return nil
-		})
+		// reset keyboard
+		msg.ReplyMarkup = tgbotapi.ReplyKeyboardHide{
+			HideKeyboard: true,
+		}
+		msg.ParseMode = tgbotapi.ModeMarkdown
+		t.bot.Send(msg)
+		return dialog.Next, nil
+	}))
 }

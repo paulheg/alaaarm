@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/dchest/uniuri"
 	"github.com/jinzhu/gorm"
 )
 
@@ -22,4 +23,10 @@ type Alert struct {
 // TableName returns the name of the Hook struct
 func (a *Alert) TableName() string {
 	return "ALERT"
+}
+
+// ChangeToken updates the token with a new random value
+func (a *Alert) ChangeToken() {
+	newToken := uniuri.NewLen(tokenLength)
+	a.Token = newToken
 }

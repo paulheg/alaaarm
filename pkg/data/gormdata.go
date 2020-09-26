@@ -11,7 +11,7 @@ import (
 
 type gormdata struct {
 	db     *gorm.DB
-	config Configuration
+	config *Configuration
 }
 
 const (
@@ -20,7 +20,7 @@ const (
 )
 
 // NewGormData return Data interface with gorm
-func NewGormData(config Configuration) Data {
+func NewGormData(config *Configuration) Data {
 	return &gormdata{
 		config: config,
 	}
@@ -93,6 +93,14 @@ func (d *gormdata) CreateAlert(name, description string, owner models.User) (mod
 func (d *gormdata) DeleteAlert(alert models.Alert) error {
 	result := d.db.Delete(&alert)
 
+	if result.Error != nil {
+		return result.Error
+	}
+
+	// Clear invitations
+	var invite models.Invite
+	result = d.db.Delete(&invite, "id = ?", alert.ID)
+
 	return result.Error
 }
 
@@ -155,6 +163,7 @@ func (d *gormdata) DeleteUser(userID uint) error {
 		Model: gorm.Model{ID: uint(userID)},
 	}
 	result := d.db.Delete(&user)
+
 	return result.Error
 }
 

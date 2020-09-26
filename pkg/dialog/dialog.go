@@ -4,6 +4,36 @@ import (
 	"errors"
 )
 
+// Failable represents a function that can fail
+type Failable func(i interface{}, ctx ValueStore) (Status, error)
+
+// Dialog represents a chain of steps
+type Dialog struct {
+	Parent   *Dialog
+	Children []*Dialog
+	Function Failable
+}
+
+// Status represents the return of a failable function
+type Status int
+
+const (
+	// NoMatch indicates that the function did not match to the input
+	NoMatch = iota
+
+	// Reset indicates to the dialog.Manager that the dialog has to be reset
+	Reset
+
+	// Next indicates to the dialog.Manager to run the next function with the same input
+	Next
+
+	// Success indicates that the function executed as expected
+	Success
+
+	// Retry indicates that the manager has to retry the current step with the next input
+	Retry
+)
+
 var (
 	// ErrNoMatch is returned if the dialog can't continue because
 	// there are no matching childdialogs
@@ -13,82 +43,11 @@ var (
 	ErrReset = errors.New("there was an error that resets the dialog")
 )
 
-// Manager represents a conversation
-type Manager struct {
-	convState map[interface{}]*Context
-	Root      *Dialog
-}
+// NewRoot creates a root dialog
+func NewRoot() *Dialog {
 
-// NewManager creates a new manager instance
-func NewManager(root *Dialog) *Manager {
-	return &Manager{
-		convState: make(map[interface{}]*Context),
-		Root:      root,
-	}
-}
-
-// Reset the conversation for given id
-func (m *Manager) Reset(id interface{}) {
-	if m.convState[id] != nil {
-		m.convState[id].Dialog = m.Root
-	}
-}
-
-// Next step in the conversation chain
-func (m *Manager) Next(i interface{}, id interface{}) error {
-	var err error
-
-	// get current context
-	ctx := m.convState[id]
-
-	if ctx == nil {
-		ctx = &Context{
-			Dialog: m.Root,
-			values: make(map[interface{}]interface{}),
-		}
-		m.convState[id] = ctx
-	}
-
-	// reset the dialog to the root if nothing else follows
-	if len(ctx.Dialog.Children) == 0 {
-		ctx.Dialog = m.Root
-	}
-
-	conv := ctx.Dialog
-
-	for _, child := range conv.Children {
-		if child != nil {
-			err = child.Function(i, ctx)
-			if err == nil {
-				ctx.Dialog = child
-				return nil
-			}
-
-			if err == ErrReset {
-				ctx.Dialog = ctx.Dialog.Root()
-				return nil
-			}
-		}
-	}
-
-	return err
-}
-
-// Dialog represents a chain of steps
-type Dialog struct {
-	Parent   *Dialog
-	Children []*Dialog
-	Function Failable
-}
-
-// Failable represents a function that can fail
-type Failable func(i interface{}, ctx ValueStore) error
-
-// Root creates a root dialog
-func Root() *Dialog {
-
-	emptyFunc := func(i interface{}, ctx ValueStore) error {
-		return nil
+	emptyFunc := func(i interface{}, ctx ValueStore) (Status, error) {
+		return Next, nil
 	}
 
 	return &Dialog{

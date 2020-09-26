@@ -1,10 +1,7 @@
 package models
 
-import "github.com/jinzhu/gorm"
-
 // AlertReceiver represents the table containing notified users
 type AlertReceiver struct {
-	gorm.Model
 	AlertID uint
 	UserID  uint
 }

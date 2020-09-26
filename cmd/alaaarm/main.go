@@ -63,19 +63,9 @@ func runCmd() error {
 		log.Fatal("An error occured while reading the configuration: ", err)
 	}
 
-	err = application.InitializeDatabase()
+	err = application.Initialize()
 	if err != nil {
-		log.Fatal("An error occurec while initializing the database: ", err)
-	}
-
-	err = application.InitializeTelegram()
-	if err != nil {
-		log.Fatal("An error occured while initializing Telegram: ", err)
-	}
-
-	err = application.InitializeWebserver()
-	if err != nil {
-		log.Fatal("An error occured while initializing the webserver: ", err)
+		log.Fatal("An error occured while initializing the application: ", err)
 	}
 
 	application.Run()

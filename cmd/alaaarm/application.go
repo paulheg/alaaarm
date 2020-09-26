@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 	"sync"
@@ -15,12 +16,10 @@ const (
 	telegramAPIKeyEnvKey = "ALARM_TELEGRAM_BOT_API_KEY"
 )
 
-// Configuration holds the application configurations
-type Configuration struct {
-	Web      *web.Configuration
-	Telegram *telegram.Configuration
-	Data     *data.Configuration
-}
+var (
+	// ErrConfigurationMissing is returned when the configuration was not read
+	ErrConfigurationMissing = errors.New("The configuration needs to be loaded first")
+)
 
 // Application is the base struct
 type Application struct {
@@ -30,32 +29,18 @@ type Application struct {
 	web      web.Webserver
 }
 
+// Configuration holds the application configurations
+type Configuration struct {
+	Web      *web.Configuration
+	Telegram *telegram.Configuration
+	Data     *data.Configuration
+}
+
 func newApplication() *Application {
 
 	a := &Application{}
 
 	return a
-}
-
-// InitializeDatabase initializes the database
-func (a *Application) InitializeDatabase() error {
-	a.data = data.NewGormData(*a.config.Data)
-	return a.data.InitDatabase()
-}
-
-// InitializeWebserver initializes the webserver
-func (a *Application) InitializeWebserver() error {
-	a.web = web.NewWebserver(*a.config.Web, a.telegram)
-	err := a.web.InitializeWebserver()
-
-	return err
-}
-
-// InitializeTelegram initializes telegram
-func (a *Application) InitializeTelegram() error {
-	a.telegram = telegram.NewTelegram(*a.config.Telegram, a.data)
-
-	return nil
 }
 
 // LoadConfiguration loads the configuration file
@@ -71,7 +56,7 @@ func (a *Application) LoadConfiguration(path string) error {
 
 	a.config = &Configuration{
 		Web: &web.Configuration{
-			Domain: "alaaarm.com",
+			Domain: "alaaarm.me",
 		},
 		Telegram: &telegram.Configuration{
 			APIKey: telegramAPIKey,
@@ -113,4 +98,61 @@ func (a *Application) Quit() error {
 	}
 
 	return nil
+}
+
+// Initialize initializes the application
+func (a *Application) Initialize() error {
+	var err error
+
+	if a.config == nil {
+		return ErrConfigurationMissing
+	}
+
+	err = a.initializeDatabase()
+	if err != nil {
+		return err
+	}
+
+	err = a.initializeWebserver()
+	if err != nil {
+		return err
+	}
+
+	err = a.initializeTelegram()
+	if err != nil {
+		return err
+	}
+
+	a.web.RegisterEndpoint("telegram", a.telegram)
+
+	return nil
+}
+
+// InitializeDatabase initializes the database
+func (a *Application) initializeDatabase() error {
+	a.data = data.NewGormData(a.config.Data)
+
+	err := a.data.InitDatabase()
+	if err != nil {
+		return err
+	}
+
+	return a.data.MigrateDatabase()
+}
+
+// initializeWebserver initializes the webserver
+func (a *Application) initializeWebserver() error {
+	a.web = web.NewWebserver(a.config.Web)
+	err := a.web.InitializeWebserver()
+
+	return err
+}
+
+// initializeTelegram initializes telegram
+func (a *Application) initializeTelegram() error {
+	var err error
+
+	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.data, a.web)
+
+	return err
 }

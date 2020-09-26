@@ -8,26 +8,26 @@ import (
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
-func (t *Telegram) newChangeDialogTokenDialog() *dialog.Dialog {
+func (t *Telegram) newAlertInfoDialog() *dialog.Dialog {
 
-	return t.command("changeToken").Append(t.newSelectAlertDialog()).
+	return t.command("alertinfo").Append(t.newSelectAlertDialog()).
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 			alert, ok := ctx.Value("alert").(models.Alert)
+
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			updatedAlert, err := t.data.UpdateAlertToken(alert)
-			if err != nil {
-				return dialog.Reset, err
-			}
-
 			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = fmt.Sprintf("The token of %s was changed.\n\nYour knew URL is:\n\n%s",
-				updatedAlert.Name,
-				t.webserver.AlertTriggerURL(updatedAlert, "Hello World"),
+			msg.Text = fmt.Sprintf(
+				"Name: %s\nDescription: %s\nTrigger URL: %s\n",
+				alert.Name,
+				alert.Description,
+				t.webserver.AlertTriggerURL(alert, "Hello World"),
 			)
+
+			t.bot.Send(msg)
 
 			return dialog.Success, nil
 		}))

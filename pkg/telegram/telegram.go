@@ -18,27 +18,25 @@ import (
 
 var (
 	errUserAlreadyExists   = errors.New("user already exists")
-	errInvalidName         = errors.New("invalid name")
-	errInvalidDescription  = errors.New("invalid description")
 	errContextDataMissing  = errors.New("context data missing")
 	errDocumentIDMissing   = errors.New("telegram document fileID missing in response")
 	errPhotoIDMissing      = errors.New("telegram photo fileID missing")
 	errUnexpectedUserInput = errors.New("the userinput was not expected and could not be processed")
 )
 
-// Keyboards
-var (
-	yesNoMenuKeyboard = tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Yes"),
-			tgbotapi.NewKeyboardButton("No"),
-		),
-	)
-)
+// Failable is a function used for dialog.Failable functions
+type Failable func(u Update, ctx dialog.ValueStore) (dialog.Status, error)
+
+func failable(f Failable) dialog.Failable {
+	return func(i interface{}, ctx dialog.ValueStore) (dialog.Status, error) {
+		update := i.(Update)
+		return f(update, ctx)
+	}
+}
 
 // Telegram represents the telegram interface
 type Telegram struct {
-	config       Configuration
+	config       *Configuration
 	bot          *tgbotapi.BotAPI
 	data         data.Data
 	webserver    web.Webserver
@@ -46,36 +44,39 @@ type Telegram struct {
 }
 
 // NewTelegram creates a new instance of a Telegram
-func NewTelegram(config Configuration, data data.Data) *Telegram {
+func NewTelegram(config *Configuration, data data.Data, webserver web.Webserver) (*Telegram, error) {
 
 	// connect to telegram
 	bot, err := tgbotapi.NewBotAPI(config.APIKey)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
 	bot.Debug = false
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	tg := &Telegram{
-		bot:    bot,
-		data:   data,
-		config: config,
+		bot:       bot,
+		data:      data,
+		config:    config,
+		webserver: webserver,
 	}
 
 	// create new dialog
-	root := dialog.Root()
+	root := dialog.NewRoot()
 	root.Branch(
 		tg.newCreateAlertDialog(),
 		tg.newInfoDialog(),
 		tg.newStartDialog(),
 		tg.newDeleteDialog(),
 		tg.newAlertInviteDialog(),
+		tg.newAlertInfoDialog(),
+		tg.newAlertUnsubscribeDialog(),
 	)
 
 	tg.conversation = dialog.NewManager(root)
 
-	return tg
+	return tg, nil
 }
 
 // Quit shuts down the telegram bot
@@ -113,7 +114,6 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 func (t *Telegram) processUpdate(update tgbotapi.Update) {
 
 	if update.Message != nil {
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
 		// create user if it does not exist
 		exists, user, err := t.data.GetUserTelegram(update.Message.Chat.ID)
@@ -130,6 +130,8 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 			Text:   update.Message.Text,
 			ChatID: update.Message.Chat.ID,
 		}
+
+		log.Printf("[%x] %s", dialogUpdate.User.ID, dialogUpdate.Text)
 
 		// commands
 		switch update.Message.Text {
@@ -150,7 +152,19 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 		default:
 			err := t.conversation.Next(dialogUpdate, update.Message.Chat.ID)
 			if err != nil {
-				log.Printf("Telegram user(%s) error: %s", user.Username, err.Error())
+				msg := tgbotapi.NewMessage(dialogUpdate.ChatID, "")
+
+				switch err {
+				case dialog.ErrNoMatch:
+					msg.Text = "I dont know what to do with this. Please use the provided commands or use /exit if something is not working."
+				default:
+					msg.Text = "We are sorry. A fatal error occured. A developer will have a look into this.\n" +
+						"Unfortunately your current action was reset by this. Please try again."
+
+					log.Printf("Telegram user(%s) error: %s", user.Username, err.Error())
+				}
+
+				t.bot.Send(msg)
 			}
 		}
 	}
