@@ -1,0 +1,30 @@
+version: "3.8"
+services:
+  alarm-db:
+    image: postgres
+    ports:
+        - 5432:5432
+    networks: 
+      - alarm-network
+    restart: always
+    #volumes:
+    #  - '%UserProfile%\Alarm\DB:/var/lib/postgresql/data'
+    environment:
+      POSTGRES_DB: alarm
+      POSTGRES_USER: alarm
+      POSTGRES_PASSWORD: sqlitesucktmyb0llzzz
+  alarm: 
+    networks: 
+      - alarm-network
+    ports:
+      - "443:3000"
+    volumes:
+      - '%UserProfile%\Alarm:/config/'
+    image: alarm:v1
+    restart: always
+    container_name: alarm-container
+    depends_on: 
+      - alarm-db
+networks: 
+  alarm-network:
+    name: alarm-network

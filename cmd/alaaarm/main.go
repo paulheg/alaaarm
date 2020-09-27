@@ -39,6 +39,7 @@ Commands:
 	run            Run the bot (Default)
 	check          Check the config file for missing fields
 	install        Start the installation process
+	version        Version of the server
 `)
 
 	if err != nil {
@@ -60,10 +61,15 @@ func checkCmd() {
 func installCmd() {
 	application := newApplication()
 
-	application.CreateConfiguration(*configPath)
+	log.Println("Writing default configuration")
+
+	err := application.CreateConfiguration(*configPath)
+	if err != nil {
+		log.Fatalf("There was an error writing the default configuration: %s", err.Error())
+	}
 }
 
-func runCmd() error {
+func runCmd() {
 	application := newApplication()
 
 	err := application.LoadConfiguration(*configPath)
@@ -79,5 +85,4 @@ func runCmd() error {
 	application.Run()
 
 	log.Print("Application finished")
-	return err
 }
