@@ -1,7 +1,8 @@
 package data
 
 import (
-	"gorm.io/driver/postgres" // sqlite driver
+	"gorm.io/driver/postgres" // postgres driver
+	"gorm.io/driver/sqlite"   // sqlite driver
 	"gorm.io/gorm"
 
 	"github.com/paulheg/alaaarm/pkg/models"
@@ -33,9 +34,16 @@ func (d *gormdata) MigrateDatabase() error {
 
 func (d *gormdata) InitDatabase() error {
 	var err error
+	var db *gorm.DB
+
+	switch d.config.Database {
+	case "sqlite":
+		db, err = gorm.Open(sqlite.Open(d.config.ConnectionString), &gorm.Config{})
+	case "postgres":
+		db, err = gorm.Open(postgres.Open(d.config.ConnectionString), &gorm.Config{})
+	}
 
 	// database setup
-	db, err := gorm.Open(postgres.Open(d.config.ConnectionString), &gorm.Config{})
 	d.db = db
 
 	return err
@@ -203,9 +211,10 @@ func (d *gormdata) CreateInvitation(alert models.Alert) (models.Invite, error) {
 func (d *gormdata) GetInvitation(token string) (bool, models.Invite, error) {
 	var invite models.Invite
 
-	result := d.db.First(&invite).
-		Where("ALERT.token = ?", token).
-		Preload("Alert")
+	result := d.db.Preload("Alert").First(&invite).
+		Joins("INNER JOIN ALERT ON ALERT.id = INVITE.alert_id").
+		Joins("INNER JOIN USER ON ALERT.owner_id = USER.id").
+		Where("INVITE.token = ?", token)
 
 	return result.RowsAffected > 0, invite, result.Error
 }
