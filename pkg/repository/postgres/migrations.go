@@ -3,7 +3,6 @@ package postgres
 import (
 	"io/ioutil"
 	"strings"
-	"time"
 )
 
 func (r *sqlxdata) runMigration(filePath string) error {
@@ -23,13 +22,6 @@ func (r *sqlxdata) runMigration(filePath string) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	_, err = r.db.Exec(`INSERT INTO VERSION (updated_at, version)
-VALUES ($1, $2)`, time.Now(), 1)
-
-	if err != nil {
-		return err
 	}
 
 	return nil

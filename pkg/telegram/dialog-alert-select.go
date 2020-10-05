@@ -23,7 +23,7 @@ func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 
 		if len(alerts) == 0 {
-			msg.Text = "You are not subscribed to anly alerts jet."
+			msg.Text = "You are not subscribed to anly alerts yet."
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		}
@@ -59,7 +59,7 @@ func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 
 		if len(alerts) == 0 {
-			msg.Text = "You dont have any alerts jet."
+			msg.Text = "You dont have any alerts yet."
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		}
