@@ -11,7 +11,7 @@ import (
 
 func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 
-	return t.command("deleteInvite").Append(t.newSelectAlertDialog()).
+	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 			alert, ok := ctx.Value("alert").(models.Alert)

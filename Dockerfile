@@ -13,7 +13,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o server /go/src/github.com/paulheg/alaaa
 
 FROM alpine:latest
 WORKDIR /
-COPY --from=builder ./go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
+COPY --from=builder /go/src/github.com/paulheg/alaaarm/migration/ /migration
+COPY --from=builder /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
 
 ENTRYPOINT [ "./server" ]
 EXPOSE 3000

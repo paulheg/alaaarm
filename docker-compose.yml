@@ -7,8 +7,8 @@ services:
     networks: 
       - alarm-network
     restart: always
-    #volumes:
-    #  - '%UserProfile%\Alarm\DB:/var/lib/postgresql/data'
+    volumes:
+      - 'E:\Alarm\DB:/var/lib/postgresql/data'
     environment:
       POSTGRES_DB: alarm
       POSTGRES_USER: alarm
@@ -19,8 +19,9 @@ services:
     ports:
       - "443:3000"
     volumes:
-      - '%UserProfile%\Alarm:/config/'
-    image: alarm:v1
+      - 'E:\Alarm\config\:/config/'
+      - 'E:\Alarm\migration\:/migration/'
+    image: alaaarm:latest
     restart: always
     container_name: alarm-container
     depends_on: 
@@ -28,3 +29,4 @@ services:
 networks: 
   alarm-network:
     name: alarm-network
+    
