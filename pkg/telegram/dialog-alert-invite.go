@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"database/sql"
 	"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -11,7 +12,7 @@ import (
 
 func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 
-	return t.command("invite").Append(t.newSelectAlertDialog()).
+	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 			alert, ok := ctx.Value("alert").(models.Alert)
@@ -20,8 +21,13 @@ func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			invite, err := t.repository.CreateInvite(alert)
-			if err != nil {
+			invite, err := t.repository.GetInviteByAlertID(alert.ID)
+			if err == sql.ErrNoRows {
+				invite, err = t.repository.CreateInvite(alert)
+				if err != nil {
+					return dialog.Reset, err
+				}
+			} else if err != nil {
 				return dialog.Reset, err
 			}
 

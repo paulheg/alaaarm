@@ -12,10 +12,6 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 		var err error
 
-		if u.Update.Message.Command() != "info" {
-			return dialog.NoMatch, nil
-		}
-
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 
 		msg.Text = "Your alerts:\n"

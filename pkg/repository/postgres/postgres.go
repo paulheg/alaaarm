@@ -39,7 +39,17 @@ func (r *sqlxdata) InitDatabase(config *repository.Configuration) error {
 
 		r.db = db
 	case "postgres":
+		db, err := sqlx.Open("postgres", r.config.ConnectionString)
+		if err != nil {
+			return err
+		}
 
+		err = db.Ping()
+		if err != nil {
+			return err
+		}
+
+		r.db = db
 	}
 
 	return nil
@@ -133,6 +143,39 @@ AND i.deleted_at IS NULL`, inviteID)
 	return invite, err
 }
 
+func (r *sqlxdata) GetInviteByAlertID(alertID uint) (models.Invite, error) {
+	var invite models.Invite
+
+	err := r.db.Get(&invite, `SELECT i.* FROM INVITE AS i
+WHERE i.alert_id = $1
+AND i.deleted_at IS NULL`, alertID)
+
+	return invite, err
+}
+
+func (r *sqlxdata) DeleteInvite(inviteID uint) error {
+
+	result, err := r.db.Exec(`UPDATE INVITE AS i
+SET deleted_at = $1
+WHERE i.id = $2
+AND i.deleted_at IS NULL`, time.Now(), inviteID)
+
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows < 1 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
 // Alert related
 func (r *sqlxdata) CreateAlert(alert models.Alert) (models.Alert, error) {
 
@@ -157,12 +200,11 @@ func (r *sqlxdata) CreateAlert(alert models.Alert) (models.Alert, error) {
 }
 
 func (r *sqlxdata) DeleteAlert(alert models.Alert) error {
-	alert.DeletedAt.Scan(time.Now())
 
-	result, err := r.db.Exec(`UPDATE ALERT
-SET deleted_at = $2
-WHERE ALERT.id = $1
-AND ALERT.deleted_at IS NULL;`, alert.ID, alert.DeletedAt)
+	result, err := r.db.Exec(`UPDATE ALERT AS a
+SET deleted_at = $1
+WHERE a.id = $2
+AND a.deleted_at IS NULL;`, time.Now(), alert.ID)
 
 	if err != nil {
 		return err
@@ -186,7 +228,7 @@ func (r *sqlxdata) GetAlertReceiver(alert models.Alert) ([]models.User, error) {
 	err := r.db.Select(&receiver, `SELECT u.* FROM USER AS u
 INNER JOIN ALERT_RECEIVER AS ar ON ar.user_id = u.id
 WHERE ar.alert_id = $1
-AND u.deleted_at IS NULL;`, alert.ID)
+AND u.deleted_at IS NULL AND ar.deleted_at IS NULL;`, alert.ID)
 
 	return receiver, err
 }
@@ -238,10 +280,10 @@ func (r *sqlxdata) UpdateAlertToken(alert models.Alert) (models.Alert, error) {
 	alert.ChangeToken()
 	alert.UpdatedAt.Scan(time.Now())
 
-	result, err := r.db.Exec(`UPDATE ALERT
-SET token = $2, updated_at = $3
-WHERE id = $1
-AND deleted_at IS NULL;`, alert.ID, alert.Token, alert.UpdatedAt)
+	result, err := r.db.Exec(`UPDATE ALERT AS a
+SET token = $1, updated_at = $2
+WHERE a.id = $3
+AND a.deleted_at IS NULL;`, alert.Token, alert.UpdatedAt, alert.ID)
 
 	if err != nil {
 		return alert, err
@@ -275,7 +317,7 @@ func (r *sqlxdata) GetUserSubscribedAlerts(userID uint) ([]models.Alert, error) 
 	err := r.db.Select(&alerts, `SELECT a.* FROM ALERT AS a
 INNER JOIN ALERT_RECEIVER AS ar ON ar.alert_id = a.id
 WHERE ar.user_id = $1
-AND a.deleted_at IS NULL;`, userID)
+AND a.deleted_at IS NULL AND ar.deleted_at IS NULL;`, userID)
 
 	return alerts, err
 }
@@ -304,12 +346,10 @@ VALUES(:alert_id, :user_id, :created_at);`, &alertReceiver)
 }
 
 func (r *sqlxdata) RemoveUserFromAlert(alert models.Alert, user models.User) error {
-	// TODO: SQL update not working
 
-	result, err := r.db.Exec(`UPDATE ALERT_RECEIVER
-SET deleted_at = $3
-WHERE ALERT_RECEIVER.user_id = $1 AND ALERT_RECEIVER.alert_id = $2
-AND ALERT_RECEIVER.deleted_at IS NULL;`, user.ID, alert.ID, time.Now())
+	result, err := r.db.Exec(`DELETE FROM ALERT_RECEIVER AS ar
+WHERE ar.user_id = $1 AND ar.alert_id = $2
+AND ar.deleted_at IS NULL;`, user.ID, alert.ID)
 
 	if err != nil {
 		return err
@@ -331,7 +371,7 @@ AND ALERT_RECEIVER.deleted_at IS NULL;`, user.ID, alert.ID, time.Now())
 // User functions
 func (r *sqlxdata) CreateUser(user models.User) (models.User, error) {
 
-	user.CreatedAt.Time = time.Now()
+	user.CreatedAt.Scan(time.Now())
 
 	result, err := r.db.NamedExec(`INSERT INTO USER(created_at, username, telegram_id)
 VALUES(:created_at, :username, :telegram_id);`, user)
@@ -371,12 +411,10 @@ AND u.deleted_at IS NULL`, telegramID)
 
 func (r *sqlxdata) DeleteUser(userID uint) error {
 
-	deletedAt := time.Now()
-
 	result, err := r.db.Exec(`UPDATE USER
-SET deleted_at = $2
-WHERE u.id = $1
-AND u.deleted_at IS NULL`, userID, deletedAt)
+SET deleted_at = $1
+WHERE u.id = $2
+AND u.deleted_at IS NULL`, time.Now(), userID)
 
 	if err != nil {
 		return err

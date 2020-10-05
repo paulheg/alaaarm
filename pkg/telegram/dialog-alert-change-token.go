@@ -8,9 +8,9 @@ import (
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
-func (t *Telegram) newChangeDialogTokenDialog() *dialog.Dialog {
+func (t *Telegram) newAlertChangeTokenDialog() *dialog.Dialog {
 
-	return t.command("changeToken").Append(t.newSelectAlertDialog()).
+	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 			alert, ok := ctx.Value("alert").(models.Alert)

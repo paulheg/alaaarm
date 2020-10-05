@@ -66,14 +66,15 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	// create new dialog
 	root := dialog.NewRoot()
 	root.Branch(
-		tg.newCreateAlertDialog(),
-		tg.newInfoDialog(),
-		tg.newStartDialog(),
-		tg.newDeleteDialog(),
-		tg.newAlertInviteDialog(),
-		tg.newAlertInfoDialog(),
-		tg.newAlertUnsubscribeDialog(),
-		tg.newChangeDialogTokenDialog(),
+		tg.command("start").Append(tg.newStartDialog()),
+		tg.command("create").Append(tg.newCreateAlertDialog()),
+		tg.command("delete").Append(tg.newDeleteDialog()),
+		tg.command("info").Append(tg.newInfoDialog()),
+		tg.command("alert_info").Append(tg.newAlertInfoDialog()),
+		tg.command("unsubscribe").Append(tg.newAlertUnsubscribeDialog()),
+		tg.command("change_alert_token").Append(tg.newAlertChangeTokenDialog()),
+		tg.command("invite").Append(tg.newAlertInviteDialog()),
+		tg.command("delete_invite").Append(tg.newInviteDeleteDiaolg()),
 	)
 
 	tg.conversation = dialog.NewManager(root)

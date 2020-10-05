@@ -10,7 +10,7 @@ import (
 
 func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 
-	return t.command("unsubscribe").Append(t.newSelectSubscribedAlertDialog()).
+	return t.newSelectSubscribedAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 			alert, ok := ctx.Value("alert").(models.Alert)
