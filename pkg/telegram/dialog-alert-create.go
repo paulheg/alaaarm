@@ -96,19 +96,14 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 
-			newAlert, ok := ctx.Value("alert").(models.Alert)
+			contextAlert, ok := ctx.Value("alert").(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			// create new alert now
-			owner := u.User
+			alert := models.NewAlert(contextAlert.Name, contextAlert.Description, u.User)
 
-			a, err := t.data.CreateAlert(
-				newAlert.Name,
-				newAlert.Description,
-				owner,
-			)
+			a, err := t.repository.CreateAlert(*alert)
 
 			if err != nil {
 				return dialog.Reset, err

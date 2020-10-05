@@ -39,7 +39,13 @@ func (t *Telegram) shareToAll(receivers []models.User, file tgbotapi.FileReader,
 }
 
 func (t *Telegram) sendImage(alert models.Alert, image tgbotapi.FileReader) error {
-	receivers := append(alert.Receiver, alert.Owner)
+
+	receivers, err := t.repository.GetAlertReceiver(alert)
+	if err != nil {
+		return err
+	}
+
+	receivers = append(receivers, alert.Owner)
 
 	create := func(id int64, file tgbotapi.FileReader) tgbotapi.Chattable {
 		return tgbotapi.NewPhotoUpload(id, file)
@@ -67,7 +73,12 @@ func (t *Telegram) sendImage(alert models.Alert, image tgbotapi.FileReader) erro
 
 func (t *Telegram) sendDocument(alert models.Alert, document tgbotapi.FileReader) error {
 
-	receivers := append(alert.Receiver, alert.Owner)
+	receivers, err := t.repository.GetAlertReceiver(alert)
+	if err != nil {
+		return err
+	}
+
+	receivers = append(receivers, alert.Owner)
 
 	create := func(id int64, file tgbotapi.FileReader) tgbotapi.Chattable {
 		return tgbotapi.NewDocumentUpload(id, file)
@@ -88,7 +99,12 @@ func (t *Telegram) sendDocument(alert models.Alert, document tgbotapi.FileReader
 }
 
 func (t *Telegram) sendToAll(alert models.Alert, message string) error {
-	receivers := append(alert.Receiver, alert.Owner)
+	receivers, err := t.repository.GetAlertReceiver(alert)
+	if err != nil {
+		return err
+	}
+
+	receivers = append(receivers, alert.Owner)
 
 	for _, receiver := range receivers {
 		msg := tgbotapi.NewMessage(receiver.TelegramID, message)
@@ -99,7 +115,7 @@ func (t *Telegram) sendToAll(alert models.Alert, message string) error {
 				switch terr.Code {
 				case 403:
 					log.Printf("Not allowed to send user %x messages. Deleting user...", receiver.ID)
-					err = t.data.DeleteUser(receiver.ID)
+					err = t.repository.DeleteUser(receiver.ID)
 					if err != nil {
 						return err
 					}

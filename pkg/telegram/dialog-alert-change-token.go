@@ -18,7 +18,7 @@ func (t *Telegram) newChangeDialogTokenDialog() *dialog.Dialog {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			updatedAlert, err := t.data.UpdateAlertToken(alert)
+			updatedAlert, err := t.repository.UpdateAlertToken(alert)
 			if err != nil {
 				return dialog.Reset, err
 			}

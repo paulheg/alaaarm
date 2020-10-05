@@ -31,18 +31,14 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 		}
 
 		// check if arugment passed to start argument is an invitation key
-		exists, invite, err := t.data.GetInvitation(invitationKey)
+		invite, err := t.repository.GetInviteByToken(invitationKey)
 		if err != nil {
+			msg.Text = "The invitation does no longer exist."
+			t.bot.Send(msg)
 			return dialog.Reset, err
 		}
 
-		if !exists {
-			msg.Text = "The invitation does no longer exist."
-			t.bot.Send(msg)
-			return dialog.Reset, nil
-		}
-
-		if invite.Alert.OwnerID == u.User.ID {
+		if invite.Alert.Owner.ID == u.User.ID {
 			msg.Text = "You are the owner of this alert, you already will be notified."
 			t.bot.Send(msg)
 			return dialog.Reset, nil
@@ -51,10 +47,17 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 		// safe to context
 		ctx.Set("invite", invite)
 
-		msg.Text = fmt.Sprintf("Do you want to join the %s alert from %s ?",
+		joinMessage := `Do you want to join the following alert?
+__%s__
+_%s_
+Of [Owner](%s)`
+
+		msg.Text = fmt.Sprintf(joinMessage,
 			invite.Alert.Name,
-			invite.Alert.Owner.Username,
+			invite.Alert.Description,
+			invite.Alert.Owner.TelegramUserLink(),
 		)
+		msg.ParseMode = tgbotapi.ModeMarkdownV2
 		t.bot.Send(msg)
 
 		return dialog.Next, nil
@@ -66,7 +69,7 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			err := t.data.AddUserToAlert(invite.Alert, u.User)
+			err := t.repository.AddUserToAlert(*invite.Alert, u.User)
 			if err != nil {
 				return dialog.Reset, err
 			}

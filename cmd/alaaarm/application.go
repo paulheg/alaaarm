@@ -7,7 +7,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/paulheg/alaaarm/pkg/data"
+	"github.com/paulheg/alaaarm/pkg/repository"
+	"github.com/paulheg/alaaarm/pkg/repository/postgres"
 	"github.com/paulheg/alaaarm/pkg/telegram"
 	"github.com/paulheg/alaaarm/pkg/web"
 )
@@ -19,28 +20,31 @@ var (
 
 // Application is the base struct
 type Application struct {
-	config   *Configuration
-	data     data.Data
-	telegram *telegram.Telegram
-	web      web.Webserver
+	config     *Configuration
+	repository repository.Repository
+	telegram   *telegram.Telegram
+	web        web.Webserver
 }
 
 // Configuration holds the application configurations
 type Configuration struct {
-	Web      *web.Configuration
-	Telegram *telegram.Configuration
-	Data     *data.Configuration
+	Web        *web.Configuration
+	Telegram   *telegram.Configuration
+	Repository *repository.Configuration
 }
 
 var defaultConfig = &Configuration{
-	Data: &data.Configuration{
-		ConnectionString: "./database.db",
+	Repository: &repository.Configuration{
+		ConnectionString:   "./database.db",
+		MigrationDirectory: "./migration",
+		Database:           "sqlite",
 	},
 	Telegram: &telegram.Configuration{
 		APIKey: "TelegramApiKey",
 	},
 	Web: &web.Configuration{
 		Domain: "example.com",
+		Port:   "3000",
 	},
 }
 
@@ -149,14 +153,14 @@ func (a *Application) Initialize() error {
 
 // InitializeDatabase initializes the database
 func (a *Application) initializeDatabase() error {
-	a.data = data.NewGormData(a.config.Data)
+	a.repository = postgres.New()
 
-	err := a.data.InitDatabase()
+	err := a.repository.InitDatabase(a.config.Repository)
 	if err != nil {
 		return err
 	}
 
-	return a.data.MigrateDatabase()
+	return a.repository.MigrateDatabase()
 }
 
 // initializeWebserver initializes the webserver
@@ -171,7 +175,7 @@ func (a *Application) initializeWebserver() error {
 func (a *Application) initializeTelegram() error {
 	var err error
 
-	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.data, a.web)
+	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web)
 
 	return err
 }

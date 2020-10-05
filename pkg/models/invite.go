@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/dchest/uniuri"
-	"gorm.io/gorm"
 )
 
 const (
@@ -13,12 +12,23 @@ const (
 
 // Invite represents an invitation for an alert
 type Invite struct {
-	gorm.Model
-	AlertID    uint
-	Alert      Alert
-	Token      string
-	OneTime    bool
-	Expiration time.Time
+	AutoIncrement
+	Model
+	AlertID    uint `db:"alert_id"`
+	Alert      *Alert
+	Token      string    `db:"token"`
+	OneTime    bool      `db:"one_time"`
+	Expiration time.Time `db:"expiration"`
+}
+
+// NewInvite creates a new Invite instance
+func NewInvite(alert *Alert) *Invite {
+	invite := &Invite{}
+	invite.CreatedAt.Scan(time.Now())
+	invite.SetAlert(alert)
+	invite.ChangeToken()
+
+	return invite
 }
 
 // TableName returns the name of the Invite struct
@@ -26,7 +36,13 @@ func (i *Invite) TableName() string {
 	return "INVITE"
 }
 
-// GenerateToken generates a new token
-func (i *Invite) GenerateToken() {
+// ChangeToken generates and sets new Token
+func (i *Invite) ChangeToken() {
 	i.Token = uniuri.NewLen(inviteTokenLength)
+}
+
+// SetAlert of invitation
+func (i *Invite) SetAlert(alert *Alert) {
+	i.Alert = alert
+	i.AlertID = alert.ID
 }

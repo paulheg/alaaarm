@@ -25,7 +25,7 @@ func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 				return dialog.Success, nil
 			}
 
-			err := t.data.RemoveUserFromAlert(alert, u.User)
+			err := t.repository.RemoveUserFromAlert(alert, u.User)
 
 			if err != nil {
 				return dialog.Reset, err

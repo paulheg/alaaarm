@@ -46,6 +46,7 @@ Commands:
 		log.Fatal(err)
 	}
 
+	os.Exit(0)
 }
 
 func checkCmd() {
@@ -56,6 +57,7 @@ func checkCmd() {
 		log.Fatal("An error occured while reading the configuration: ", err)
 	}
 	log.Println("Config file seems correct")
+	os.Exit(0)
 }
 
 func installCmd() {
@@ -67,6 +69,7 @@ func installCmd() {
 	if err != nil {
 		log.Fatalf("There was an error writing the default configuration: %s", err.Error())
 	}
+	os.Exit(0)
 }
 
 func runCmd() {
