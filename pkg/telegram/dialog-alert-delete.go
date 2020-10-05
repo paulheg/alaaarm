@@ -41,7 +41,7 @@ Do you want to delete the alert?`, alert.Name)
 				return dialog.Reset, errContextDataMissing
 			}
 
-			err = t.data.DeleteAlert(alert)
+			err = t.repository.DeleteAlert(alert)
 			if err != nil {
 				return dialog.Reset, err
 			}

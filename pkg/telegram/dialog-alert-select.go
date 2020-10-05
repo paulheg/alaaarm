@@ -15,7 +15,7 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		alerts, err := t.data.GetUserSubscribedAlerts(u.User.ID)
+		alerts, err := t.repository.GetUserSubscribedAlerts(u.User.ID)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -25,7 +25,7 @@ func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 		if len(alerts) == 0 {
 			msg.Text = "You are not subscribed to anly alerts jet."
 			t.bot.Send(msg)
-			return dialog.Success, nil
+			return dialog.Reset, nil
 		}
 
 		ctx.Set("alerts", alerts)
@@ -51,7 +51,7 @@ func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
 
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		alerts, err := t.data.GetUserTelegramAlerts(u.ChatID)
+		alerts, err := t.repository.GetUserAlerts(u.User.ID)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -105,6 +105,11 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 			msg := tgbotapi.NewMessage(u.ChatID, "Could not find the alert you selected")
 			t.bot.Send(msg)
 			return dialog.Retry, nil
+		}
+
+		alert, err := t.repository.GetAlert(alert.ID)
+		if err != nil {
+			return dialog.Reset, err
 		}
 
 		ctx.Set("alert", alert)

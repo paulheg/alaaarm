@@ -20,7 +20,7 @@ func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			invite, err := t.data.CreateInvitation(alert)
+			invite, err := t.repository.CreateInvite(alert)
 			if err != nil {
 				return dialog.Reset, err
 			}

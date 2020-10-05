@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -10,9 +11,9 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/paulheg/alaaarm/pkg/data"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
+	"github.com/paulheg/alaaarm/pkg/repository"
 	"github.com/paulheg/alaaarm/pkg/web"
 )
 
@@ -38,13 +39,13 @@ func failable(f Failable) dialog.Failable {
 type Telegram struct {
 	config       *Configuration
 	bot          *tgbotapi.BotAPI
-	data         data.Data
+	repository   repository.Repository
 	webserver    web.Webserver
 	conversation *dialog.Manager
 }
 
 // NewTelegram creates a new instance of a Telegram
-func NewTelegram(config *Configuration, data data.Data, webserver web.Webserver) (*Telegram, error) {
+func NewTelegram(config *Configuration, repository repository.Repository, webserver web.Webserver) (*Telegram, error) {
 
 	// connect to telegram
 	bot, err := tgbotapi.NewBotAPI(config.APIKey)
@@ -56,10 +57,10 @@ func NewTelegram(config *Configuration, data data.Data, webserver web.Webserver)
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	tg := &Telegram{
-		bot:       bot,
-		data:      data,
-		config:    config,
-		webserver: webserver,
+		bot:        bot,
+		repository: repository,
+		config:     config,
+		webserver:  webserver,
 	}
 
 	// create new dialog
@@ -119,12 +120,18 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 	if update.Message != nil {
 
 		// create user if it does not exist
-		exists, user, err := t.data.GetUserTelegram(update.Message.Chat.ID)
-		if !exists || err != nil {
-			user, err = t.data.CreateUser(models.NewUser(
+		user, err := t.repository.GetUserTelegram(update.Message.Chat.ID)
+		if err == sql.ErrNoRows {
+			user, err = t.repository.CreateUser(*models.NewUser(
 				update.Message.Chat.ID,
 				update.Message.Chat.UserName,
 			))
+
+			if err != nil {
+				log.Printf("Error while writing userdata: %s", err.Error())
+			}
+		} else if err != nil {
+			log.Printf("Error while reading userdata: %s", err.Error())
 		}
 
 		dialogUpdate := Update{
@@ -189,60 +196,57 @@ func (t *Telegram) newFileReader(file multipart.FileHeader) (tgbotapi.FileReader
 
 // NotifyAll notifies all clients associated to the alert
 func (t *Telegram) NotifyAll(token, message string, file *multipart.FileHeader) error {
-	exists, alert, err := t.data.GetAlertWithToken(token)
+	alert, err := t.repository.GetAlertByToken(token)
 
 	if err != nil {
 		return err
 	}
 
-	if exists {
-		// append alert name
-		message = fmt.Sprintf("\a %s: %s", alert.Name, message)
+	// append alert name
+	message = fmt.Sprintf("\a %s: %s", alert.Name, message)
 
-		// send files (documents / pictures)
-		if file != nil {
+	// send files (documents / pictures)
+	if file != nil {
 
-			fileReader, err := t.newFileReader(*file)
+		fileReader, err := t.newFileReader(*file)
+		if err != nil {
+			return err
+		}
+
+		isImage := false
+		mimeType := file.Header.Get("Content-Type")
+
+		switch mimeType {
+		// gifs have to be send as document
+		case "image/gif":
+			isImage = false
+			break
+		default:
+			if strings.HasPrefix(mimeType, "image") {
+				isImage = true
+			}
+			break
+		}
+
+		if isImage {
+			err = t.sendImage(alert, fileReader)
 			if err != nil {
 				return err
 			}
-
-			isImage := false
-			mimeType := file.Header.Get("Content-Type")
-
-			switch mimeType {
-			// gifs have to be send as document
-			case "image/gif":
-				isImage = false
-				break
-			default:
-				if strings.HasPrefix(mimeType, "image") {
-					isImage = true
-				}
-				break
-			}
-
-			if isImage {
-				err = t.sendImage(alert, fileReader)
-				if err != nil {
-					return err
-				}
-			} else {
-				err = t.sendDocument(alert, fileReader)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		// send text messages
-		if len(message) > 0 {
-			err := t.sendToAll(alert, message)
+		} else {
+			err = t.sendDocument(alert, fileReader)
 			if err != nil {
 				return err
 			}
 		}
+	}
 
+	// send text messages
+	if len(message) > 0 {
+		err := t.sendToAll(alert, message)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

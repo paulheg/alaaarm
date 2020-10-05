@@ -19,7 +19,7 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 
 		msg.Text = "Your alerts:\n"
-		userAlerts, err := t.data.GetUserAlerts(u.User.ID)
+		userAlerts, err := t.repository.GetUserAlerts(u.User.ID)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -35,7 +35,7 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 
 		msg.Text += "\n\nSubscribed Alerts:\n"
 
-		subscribedAlerts, err := t.data.GetUserSubscribedAlerts(u.User.ID)
+		subscribedAlerts, err := t.repository.GetUserSubscribedAlerts(u.User.ID)
 		if err != nil {
 			return dialog.Reset, err
 		}

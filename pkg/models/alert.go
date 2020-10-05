@@ -1,8 +1,9 @@
 package models
 
 import (
+	"time"
+
 	"github.com/dchest/uniuri"
-	"gorm.io/gorm"
 )
 
 const (
@@ -11,13 +12,26 @@ const (
 
 // Alert represents a custom alert to send notifications to
 type Alert struct {
-	gorm.Model
-	Name        string `gorm:"column:name"`
-	Description string `gorm:"column:description"`
-	OwnerID     uint   `gorm:"column:owner_id"`
-	Owner       User   `gorm:"foreignkey:owner_id"`
-	Token       string `gorm:"column:token"`
-	Receiver    []User `gorm:"many2many:ALERT_RECEIVER"`
+	AutoIncrement
+	Model
+	Name        string `db:"name"`
+	Description string `db:"description"`
+	OwnerID     uint   `db:"owner_id"`
+	Owner       User
+	Token       string `db:"token"`
+}
+
+// NewAlert creates a new Alert instance
+func NewAlert(name, description string, owner User) *Alert {
+	alert := &Alert{
+		Name:        name,
+		Description: description,
+	}
+	alert.CreatedAt.Scan(time.Now())
+	alert.SetOwner(owner)
+	alert.ChangeToken()
+
+	return alert
 }
 
 // TableName returns the name of the Hook struct
@@ -25,8 +39,14 @@ func (a *Alert) TableName() string {
 	return "ALERT"
 }
 
-// ChangeToken updates the token with a new random value
+// ChangeToken generates and sets new Token
 func (a *Alert) ChangeToken() {
 	newToken := uniuri.NewLen(alertTokenLength)
 	a.Token = newToken
+}
+
+// SetOwner updates the Owner and OwnerID field
+func (a *Alert) SetOwner(owner User) {
+	a.Owner = owner
+	a.OwnerID = owner.ID
 }
