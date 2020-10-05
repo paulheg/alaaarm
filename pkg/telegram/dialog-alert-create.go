@@ -16,9 +16,6 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 	descriptionPattern := regexp.MustCompile("^.{10,}$")
 
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-		if u.Update.Message.Command() != "create" {
-			return dialog.NoMatch, nil
-		}
 
 		// ask for the name of the alert
 		response := "Creating a new alert\n\n" +

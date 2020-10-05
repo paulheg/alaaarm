@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -15,10 +16,6 @@ import (
 func (t *Telegram) newStartDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		if u.Update.Message.Command() != "start" {
-			return dialog.NoMatch, nil
-		}
-
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 		invitationKey := u.Update.Message.CommandArguments()
 		invitationKey = strings.TrimSpace(invitationKey)
@@ -32,9 +29,11 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 
 		// check if arugment passed to start argument is an invitation key
 		invite, err := t.repository.GetInviteByToken(invitationKey)
-		if err != nil {
+		if err == sql.ErrNoRows {
 			msg.Text = "The invitation does no longer exist."
 			t.bot.Send(msg)
+			return dialog.Reset, nil
+		} else if err != nil {
 			return dialog.Reset, err
 		}
 
