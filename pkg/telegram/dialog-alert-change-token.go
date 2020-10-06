@@ -27,9 +27,9 @@ func (t *Telegram) newAlertChangeTokenDialog() *dialog.Dialog {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 			msg.ParseMode = tgbotapi.ModeMarkdown
 			msg.Text = emoji.Sprintf(`The token of :bell: *%s* was changed.
-			
-			Your new trigger URL is:
-			[%s](%s)`,
+
+Your new trigger URL is:
+[%s](%s)`,
 				updatedAlert.Name,
 				triggerURL,
 				triggerURL,

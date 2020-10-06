@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -50,17 +49,15 @@ To create an alert use /create`)
 		// safe to context
 		ctx.Set("invite", invite)
 
-		joinMessage := `Do you want to join the following alert?
-__%s__
-_%s_
-Of [Owner](%s)`
-
-		msg.Text = fmt.Sprintf(joinMessage,
+		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.Text = emoji.Sprintf(`Do you want to join the following :bell: alert?
+*%s*
+%s
+Of [Owner](%s)`,
 			invite.Alert.Name,
 			invite.Alert.Description,
 			invite.Alert.Owner.TelegramUserLink(),
 		)
-		msg.ParseMode = tgbotapi.ModeMarkdownV2
 		t.bot.Send(msg)
 
 		return dialog.Next, nil
