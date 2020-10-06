@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 )
 
@@ -28,13 +29,13 @@ func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog 
 
 		switch strings.ToLower(u.Text) {
 		case "yes":
-			msg.Text = "You answered Yes."
+			msg.Text = emoji.Sprint(":check_mark: You answered Yes.")
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
 			t.bot.Send(msg)
 
 			return onYes(u, ctx)
 		case "no":
-			msg.Text = "You answered No."
+			msg.Text = emoji.Sprint(":cross_mark: You answered No.")
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
 			t.bot.Send(msg)
 

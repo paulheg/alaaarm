@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -22,7 +23,10 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 
 		if len(invitationKey) == 0 {
 			// normal start command
-			msg.Text = "Welcome to the Alaaarm bot.\nWith this bot you can create and receive alerts."
+			msg.Text = emoji.Sprint(`Welcome to the :bell: Alaaarm bot.
+With this bot you can create and receive alerts.
+
+To create an alert use /create`)
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		}
@@ -30,7 +34,7 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 		// check if arugment passed to start argument is an invitation key
 		invite, err := t.repository.GetInviteByToken(invitationKey)
 		if err == sql.ErrNoRows {
-			msg.Text = "The invitation does no longer exist."
+			msg.Text = emoji.Sprint(":cross_mark: The invitation does no longer exist.")
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		} else if err != nil {
@@ -38,7 +42,7 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 		}
 
 		if invite.Alert.Owner.ID == u.User.ID {
-			msg.Text = "You are the owner of this alert, you already will be notified."
+			msg.Text = emoji.Sprint(":warning: You are the owner of this alert, you already will be notified.")
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		}
@@ -74,7 +78,7 @@ Of [Owner](%s)`
 			}
 
 			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = fmt.Sprintf("You successfully joined the %s alert. You will be notified on the next alert.",
+			msg.Text = emoji.Sprintf(":check_mark_button: You successfully joined the %s alert. You will be notified on the next alert.",
 				invite.Alert.Name,
 			)
 			t.bot.Send(msg)
@@ -82,7 +86,9 @@ Of [Owner](%s)`
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "You did not join.")
+			msg := tgbotapi.NewMessage(u.ChatID, "")
+			msg.Text = emoji.Sprint(":cross_mark: You did not join.")
+
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		},
