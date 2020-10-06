@@ -22,7 +22,7 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 
 			msg.ParseMode = tgbotapi.ModeMarkdown
-			msg.Text = emoji.Sprintf(`:warning: *Do you really want to delete the :bell: _%s_ alert?*
+			msg.Text = emoji.Sprintf(`:warning: *Do you really want to delete the :bell: %s alert?*
 No one will receive any notifications from this alert anymore.
 HTTP Requests using the token of this alert wont result in a notification.
 
