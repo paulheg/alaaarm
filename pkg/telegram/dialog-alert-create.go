@@ -1,9 +1,10 @@
 package telegram
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/kyokomi/emoji"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/paulheg/alaaarm/pkg/dialog"
@@ -18,11 +19,11 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 		// ask for the name of the alert
-		response := "Creating a new alert\n\n" +
-			"Send me the name of the new alert."
-
-		msg := tgbotapi.NewMessage(u.ChatID, response)
+		msg := tgbotapi.NewMessage(u.ChatID, "")
 		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.Text = emoji.Sprint(`:bell: Creating a new alert
+		
+		Send me the name of the new alert.`)
 		t.bot.Send(msg)
 
 		return dialog.Success, nil
@@ -34,7 +35,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 
 		// check if name matches the defined pattern
 		if !namePattern.MatchString(name) {
-			msg.Text = "The alert name has to be at least 5 characters long.\nPlease try again."
+			msg.Text = emoji.Sprint(":warning: The alert name has to be at least 5 characters long.\nPlease try again.")
 			t.bot.Send(msg)
 			return dialog.Retry, nil
 		}
@@ -44,12 +45,11 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 			Name: name,
 		})
 
-		msg.Text = fmt.Sprintf(
-			"The name of your new notification is *%s*.\n"+
-				"Now give it a description:",
-			name)
-
 		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.Text = emoji.Sprintf(`The name of your new notification is *%s*.
+
+Now give it a description.`, name)
+
 		t.bot.Send(msg)
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
@@ -60,7 +60,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 
 		// check if matches the description pattern
 		if !descriptionPattern.MatchString(description) {
-			msg.Text = "The description has to be at least 10 characters long. Please try again."
+			msg.Text = emoji.Sprint(":warning: The description has to be at least 10 characters long.\nPlease try again.")
 			t.bot.Send(msg)
 			return dialog.Retry, nil
 		}
@@ -78,13 +78,12 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// store new description in context
 		ctx.Set("alert", newAlert)
 
-		msg.Text = fmt.Sprintf(
-			"Creating new alert:\n\n"+
-				"Name: *%q*\n"+
-				"Description: *%q*\n\n"+
-				"Do you want to create the alert?",
-			newAlert.Name, newAlert.Description)
 		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.Text = emoji.Sprintf(`:bell: Creating new alert
+*Name:* %s
+*Description:* %s
+
+Do you want to create the alert?`, newAlert.Name, newAlert.Description)
 
 		t.bot.Send(msg)
 		return dialog.Next, nil
@@ -108,20 +107,19 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(a, "Hello World")
 
-			msg.Text = fmt.Sprintf(
-				"New alert was created\n\n"+
-					"To trigger the alarm send a GET request to the follwing URL:\n\n"+
-					"[%s](%s)",
-				triggerURL, triggerURL)
-
 			msg.ParseMode = tgbotapi.ModeMarkdown
+			msg.Text = emoji.Sprintf(`:check_mark_button: New alert :bell: was created
+
+To trigger the alarm send a GET request to the follwing URL:
+[%s](%s)`, triggerURL, triggerURL)
 
 			t.bot.Send(msg)
 			return dialog.Success, nil
 		},
 		// On no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "Alert is discarded.")
+			msg := tgbotapi.NewMessage(u.ChatID, "")
+			msg.Text = emoji.Sprint(":cross_mark: Alert is discarded.")
 			t.bot.Send(msg)
 			return dialog.Reset, nil
 		},

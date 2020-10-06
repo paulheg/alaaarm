@@ -1,9 +1,8 @@
 package telegram
 
 import (
-	"fmt"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 )
 
@@ -22,7 +21,7 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 
 		if len(userAlerts) > 0 {
 			for _, alert := range userAlerts {
-				msg.Text += fmt.Sprintf("- %s\n", alert.Name)
+				msg.Text += emoji.Sprintf("-:bell: %s\n", alert.Name)
 			}
 			msg.ParseMode = tgbotapi.ModeMarkdown
 		} else {
@@ -38,7 +37,7 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 
 		if len(subscribedAlerts) > 0 {
 			for _, alert := range subscribedAlerts {
-				msg.Text += fmt.Sprintf("- %s\n", alert.Name)
+				msg.Text += emoji.Sprintf("-:bell: %s\n", alert.Name)
 			}
 		} else {
 			msg.Text += "You have not subscribed to any alerts yet."

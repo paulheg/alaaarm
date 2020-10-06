@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -53,14 +54,16 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "The invite was successfuly deleted.")
+			msg := tgbotapi.NewMessage(u.ChatID, "")
+			msg.Text = emoji.Sprint(":check_mark_button: The invite was successfuly deleted.")
 			t.bot.Send(msg)
 
 			return dialog.Success, nil
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "The invite was not deleted.")
+			msg := tgbotapi.NewMessage(u.ChatID, "")
+			msg.Text = emoji.Sprint(":cross_mark: The invite was not deleted.")
 			t.bot.Send(msg)
 			return dialog.Success, nil
 		},

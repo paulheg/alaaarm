@@ -1,9 +1,8 @@
 package telegram
 
 import (
-	"fmt"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -32,7 +31,7 @@ func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 			}
 
 			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = fmt.Sprintf("You are succesfully unsubscribed from the %s alert.", alert.Name)
+			msg.Text = emoji.Sprintf(":check_mark_button: You are succesfully unsubscribed from the %s alert.", alert.Name)
 			t.bot.Send(msg)
 			return dialog.Success, nil
 		}))
