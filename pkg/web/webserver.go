@@ -1,9 +1,12 @@
 package web
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
+
 	"net/http"
 	"net/url"
 	"sync"
@@ -69,7 +72,12 @@ func (w *FiberWebserver) InitializeWebserver() error {
 		token := c.Params("token")
 		message := c.Query("m")
 
-		log.Printf("Triggering %s with message %s", token, message)
+		log.WithFields(log.Fields{
+			"alert_token": token,
+			"message":     message,
+			"ip":          c.IP(),
+			"user_agent":  c.Request().Header.UserAgent(),
+		}).Info("Triggering message over web interface.", token, message)
 
 		if e, ok := w.endpoints["telegram"]; ok {
 			err = e.NotifyAll(token, message, nil)
@@ -77,9 +85,18 @@ func (w *FiberWebserver) InitializeWebserver() error {
 			err = errEndpointNotFound
 		}
 
-		if err != nil {
-			log.Println(err.Error())
-			return c.Status(http.StatusInternalServerError).SendString(err.Error())
+		if err == sql.ErrNoRows {
+			return c.SendStatus(http.StatusNotFound)
+		} else if err != nil {
+
+			log.WithFields(log.Fields{
+				"alert_token": token,
+				"message":     message,
+				"ip":          c.IP(),
+				"user_agent":  c.Request().Header.UserAgent(),
+			}).Error(err.Error())
+
+			return c.SendStatus(http.StatusInternalServerError)
 		}
 
 		return c.SendStatus(http.StatusOK)
@@ -91,8 +108,14 @@ func (w *FiberWebserver) InitializeWebserver() error {
 
 		file, err := c.FormFile("file")
 		if err != nil {
-			log.Println(err.Error())
-			return c.Status(http.StatusInternalServerError).SendString(err.Error())
+			log.WithFields(log.Fields{
+				"alert_token": token,
+				"message":     message,
+				"ip":          c.IP(),
+				"user_agent":  c.Request().Header.UserAgent(),
+			}).Error(err.Error())
+
+			return c.SendStatus(http.StatusInternalServerError)
 		}
 
 		if e, ok := w.endpoints["telegram"]; ok {
@@ -101,9 +124,17 @@ func (w *FiberWebserver) InitializeWebserver() error {
 			err = errEndpointNotFound
 		}
 
-		if err != nil {
-			log.Println(err.Error())
-			return c.Status(http.StatusInternalServerError).SendString(err.Error())
+		if err == sql.ErrNoRows {
+			return c.SendStatus(http.StatusNotFound)
+		} else if err != nil {
+			log.WithFields(log.Fields{
+				"alert_token": token,
+				"message":     message,
+				"ip":          c.IP(),
+				"user_agent":  c.Request().Header.UserAgent(),
+			}).Error(err.Error())
+
+			return c.SendStatus(http.StatusInternalServerError)
 		}
 
 		return c.SendStatus(http.StatusOK)
@@ -116,7 +147,7 @@ func (w *FiberWebserver) InitializeWebserver() error {
 func (w *FiberWebserver) Run(wg *sync.WaitGroup) error {
 	defer wg.Done()
 
-	log.Println("Webserver listening...")
+	log.Info("Webserver listening...")
 
 	return w.server.Listen(":" + w.config.Port)
 }

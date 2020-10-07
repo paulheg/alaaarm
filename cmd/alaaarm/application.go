@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/paulheg/alaaarm/pkg/repository"
 	"github.com/paulheg/alaaarm/pkg/repository/postgres"
@@ -28,12 +29,14 @@ type Application struct {
 
 // Configuration holds the application configurations
 type Configuration struct {
+	Logging    string
 	Web        *web.Configuration
 	Telegram   *telegram.Configuration
 	Repository *repository.Configuration
 }
 
 var defaultConfig = &Configuration{
+	Logging: "warn",
 	Repository: &repository.Configuration{
 		ConnectionString:   "./database.db",
 		MigrationDirectory: "./migration",
@@ -58,7 +61,7 @@ func newApplication() *Application {
 // LoadConfiguration loads the configuration file
 func (a *Application) LoadConfiguration(path string) error {
 
-	log.Println("Reading configuration")
+	log.Info("Reading configuration")
 
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -71,7 +74,7 @@ func (a *Application) LoadConfiguration(path string) error {
 	}
 
 	a.config = config
-	log.Println("Configuration was succesfully loaded")
+	log.Info("Configuration was succesfully loaded")
 	return nil
 }
 
@@ -88,7 +91,7 @@ func (a *Application) CreateConfiguration(path string) error {
 		return err
 	}
 
-	log.Printf("The default configuration file was written to %s", path)
+	log.Infof("The default configuration file was written to %s", path)
 
 	return nil
 }
@@ -130,6 +133,21 @@ func (a *Application) Initialize() error {
 	if a.config == nil {
 		return ErrConfigurationMissing
 	}
+
+	var logLevel log.Level
+
+	switch a.config.Logging {
+	case "info":
+		logLevel = log.InfoLevel
+	case "warn":
+		logLevel = log.WarnLevel
+	case "error":
+		logLevel = log.ErrorLevel
+	default:
+		logLevel = log.WarnLevel
+	}
+
+	log.SetLevel(logLevel)
 
 	err = a.initializeDatabase()
 	if err != nil {
