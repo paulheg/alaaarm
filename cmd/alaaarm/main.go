@@ -2,14 +2,17 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var version = flag.Bool("version", false, "Show alaaarm version")
 var configPath = flag.String("config", "./config/config.json", "Path to configuration file")
 
 func main() {
+
+	log.SetOutput(os.Stdout)
 
 	flag.Usage = func() {
 		helpCmd()
@@ -56,18 +59,18 @@ func checkCmd() {
 	if err != nil {
 		log.Fatal("An error occured while reading the configuration: ", err)
 	}
-	log.Println("Config file seems correct")
+	log.Info("Config file seems correct")
 	os.Exit(0)
 }
 
 func installCmd() {
 	application := newApplication()
 
-	log.Println("Writing default configuration")
+	log.Info("Writing default configuration")
 
 	err := application.CreateConfiguration(*configPath)
 	if err != nil {
-		log.Fatalf("There was an error writing the default configuration: %s", err.Error())
+		log.WithField("error", err.Error()).Fatal("There was an error writing the default configuration")
 	}
 	os.Exit(0)
 }
@@ -87,5 +90,5 @@ func runCmd() {
 
 	application.Run()
 
-	log.Print("Application finished")
+	log.Info("Application finished")
 }

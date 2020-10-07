@@ -1,7 +1,7 @@
 package telegram
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/paulheg/alaaarm/pkg/models"
@@ -114,7 +114,7 @@ func (t *Telegram) sendToAll(alert models.Alert, message string) error {
 			if terr, ok := err.(*tgbotapi.Error); ok {
 				switch terr.Code {
 				case 403:
-					log.Printf("Not allowed to send user %x messages. Deleting user...", receiver.ID)
+					log.WithField("userID", receiver.ID).Warn("Not allowed to send message. Deleting user...", receiver.ID)
 					err = t.repository.DeleteUser(receiver.ID)
 					if err != nil {
 						return err

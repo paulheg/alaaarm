@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+
+	log "github.com/sirupsen/logrus"
+
 	"mime/multipart"
 	"strings"
 	"sync"
@@ -54,7 +56,7 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	}
 
 	bot.Debug = false
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	log.WithField("bot_name", bot.Self.UserName).Info("Authorized Telegram bot.")
 
 	tg := &Telegram{
 		bot:        bot,
@@ -101,7 +103,7 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 		return err
 	}
 
-	log.Print("Listening to telegram updates...")
+	log.Info("Listening to telegram updates...")
 
 	// Optional: wait for updates and clear them if you don't want to handle
 	// a large backlog of old messages
@@ -116,12 +118,12 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 				"Unfortunately your current action was reset by this. Please try again."
 			t.bot.Send(msg)
 
-			log.Printf("Telegram runtime error: %s", err.Error())
+			log.WithField("error", err.Error()).Error("Telegram runtime error")
 		}
 
 	}
 
-	log.Print("Telegram bot shutdown")
+	log.Info("Telegram bot shutdown")
 	return nil
 }
 
@@ -152,7 +154,10 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) error {
 			ChatID: update.Message.Chat.ID,
 		}
 
-		log.Printf("Message from User:%x -> %s", dialogUpdate.User.ID, dialogUpdate.Text)
+		log.WithFields(log.Fields{
+			"userID":  dialogUpdate.User.ID,
+			"message": dialogUpdate.Text,
+		}).Info("New Message")
 
 		// commands
 		switch update.Message.Text {
