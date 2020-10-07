@@ -43,7 +43,11 @@ func (t *Telegram) newInfoDialog() *dialog.Dialog {
 			msg.Text += "You have not subscribed to any alerts yet."
 		}
 
-		t.bot.Send(msg)
+		_, err = t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
 		return dialog.Success, nil
 	}))
 }

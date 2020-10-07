@@ -37,13 +37,17 @@ func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 			if err != nil {
 				return dialog.Reset, err
 			}
+
 			msg := tgbotapi.NewPhotoUpload(u.ChatID, tgbotapi.FileBytes{
 				Name:  "invite_qr.png",
 				Bytes: qrBytes,
 			})
 			msg.Caption = fmt.Sprintf("Here is your invitation link:\n\n%s", inviteURL)
 
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return dialog.Success, nil
 		}))

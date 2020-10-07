@@ -24,7 +24,11 @@ func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 
 		if len(alerts) == 0 {
 			msg.Text = "You are not subscribed to anly alerts yet."
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Reset, nil
 		}
 
@@ -41,7 +45,10 @@ func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
 
 		msg.Text = "Select the alert"
-		t.bot.Send(msg)
+		_, err = t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
 
 		return dialog.Success, nil
 	})).Append(t.alertDetermination())
@@ -60,7 +67,11 @@ func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
 
 		if len(alerts) == 0 {
 			msg.Text = "You dont have any alerts yet."
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Reset, nil
 		}
 
@@ -76,7 +87,10 @@ func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
 		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
 
 		msg.Text = "Select the alert"
-		t.bot.Send(msg)
+		_, err = t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
 
 		return dialog.Success, nil
 	})).Append(t.alertDetermination())
@@ -103,7 +117,11 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 
 		if !foundAlert {
 			msg := tgbotapi.NewMessage(u.ChatID, "Could not find the alert you selected")
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Retry, nil
 		}
 
@@ -122,7 +140,11 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 			HideKeyboard: true,
 		}
 		msg.ParseMode = tgbotapi.ModeMarkdown
-		t.bot.Send(msg)
+		_, err = t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
 		return dialog.Next, nil
 	}))
 }

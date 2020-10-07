@@ -21,7 +21,11 @@ func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog 
 
 		msg := tgbotapi.NewMessage(u.ChatID, "Yes / No ?")
 		msg.ReplyMarkup = yesNoReplyKeyboard
-		t.bot.Send(msg)
+		_, err := t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
@@ -31,18 +35,28 @@ func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog 
 		case "yes":
 			msg.Text = emoji.Sprint(":check_mark: You answered Yes.")
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return onYes(u, ctx)
 		case "no":
 			msg.Text = emoji.Sprint(":cross_mark: You answered No.")
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return onNo(u, ctx)
 		default:
 			msg.Text = "Please answer with Yes/No"
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Retry, nil
 		}
 

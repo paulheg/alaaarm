@@ -28,7 +28,10 @@ HTTP Requests using the token of this alert wont result in a notification.
 
 :warning: This process cannot be reversed.
 Do you want to delete the alert?`, alert.Name)
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return dialog.Next, nil
 		})).Append(t.newYesNoDialog(
@@ -48,14 +51,22 @@ Do you want to delete the alert?`, alert.Name)
 			}
 
 			msg.Text = emoji.Sprint(":check_mark_button: Alert was deleted.")
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Success, nil
 		},
 		// On No
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 			msg.Text = emoji.Sprint(":cross_mark: The alert was not deleted.")
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Success, nil
 		},
 	))

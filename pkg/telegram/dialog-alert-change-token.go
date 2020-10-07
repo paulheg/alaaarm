@@ -34,7 +34,11 @@ Your new trigger URL is:
 				triggerURL,
 				triggerURL,
 			)
-			t.bot.Send(msg)
+
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return dialog.Success, nil
 		}))

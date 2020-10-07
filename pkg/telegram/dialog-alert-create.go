@@ -24,7 +24,10 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		msg.Text = emoji.Sprint(`:bell: Creating a new alert
 		
 		Send me the name of the new alert.`)
-		t.bot.Send(msg)
+		_, err := t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
 
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
@@ -36,7 +39,11 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// check if name matches the defined pattern
 		if !namePattern.MatchString(name) {
 			msg.Text = emoji.Sprint(":warning: The alert name has to be at least 5 characters long.\nPlease try again.")
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Retry, nil
 		}
 
@@ -50,7 +57,11 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 
 Now give it a description.`, name)
 
-		t.bot.Send(msg)
+		_, err := t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
@@ -61,7 +72,10 @@ Now give it a description.`, name)
 		// check if matches the description pattern
 		if !descriptionPattern.MatchString(description) {
 			msg.Text = emoji.Sprint(":warning: The description has to be at least 10 characters long.\nPlease try again.")
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 			return dialog.Retry, nil
 		}
 
@@ -85,7 +99,11 @@ Now give it a description.`, name)
 
 Do you want to create the alert?`, newAlert.Name, newAlert.Description)
 
-		t.bot.Send(msg)
+		_, err := t.bot.Send(msg)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
 		return dialog.Next, nil
 	})).Append(t.newYesNoDialog(
 		// On Yes
@@ -113,14 +131,22 @@ Do you want to create the alert?`, newAlert.Name, newAlert.Description)
 To trigger the alarm send a GET request to the follwing URL:
 [%s](%s)`, triggerURL, triggerURL)
 
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Success, nil
 		},
 		// On no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 			msg.Text = emoji.Sprint(":cross_mark: Alert is discarded.")
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Reset, nil
 		},
 	))
