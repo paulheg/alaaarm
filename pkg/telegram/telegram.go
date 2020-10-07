@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/kyokomi/emoji"
 	log "github.com/sirupsen/logrus"
 
 	"mime/multipart"
@@ -221,7 +222,7 @@ func (t *Telegram) NotifyAll(token, message string, file *multipart.FileHeader) 
 	}
 
 	// append alert name
-	message = fmt.Sprintf("\a %s: %s", alert.Name, message)
+	message = emoji.Sprintf(":bell: %s: %s", alert.Name, message)
 
 	// send files (documents / pictures)
 	if file != nil {
@@ -247,21 +248,18 @@ func (t *Telegram) NotifyAll(token, message string, file *multipart.FileHeader) 
 		}
 
 		if isImage {
-			err = t.sendImage(alert, fileReader)
+			err = t.sendImageToAll(alert, fileReader, message)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = t.sendDocument(alert, fileReader)
+			err = t.sendDocumentToAll(alert, fileReader, message)
 			if err != nil {
 				return err
 			}
 		}
-	}
-
-	// send text messages
-	if len(message) > 0 {
-		err := t.sendToAll(alert, message)
+	} else if len(message) > 0 {
+		err := t.sendMessageToAll(alert, message)
 		if err != nil {
 			return err
 		}
