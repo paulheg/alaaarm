@@ -24,7 +24,9 @@ func (t *Telegram) newAlertInfoDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(alert, "Hello World")
 
-			replyText := emoji.Sprintf(`:bell: *Alert Info* :megaphone:
+			msg := tgbotapi.NewMessage(u.ChatID, "")
+			msg.ParseMode = tgbotapi.ModeMarkdown
+			msg.Text = emoji.Sprintf(`:bell: *Alert Info* :megaphone:
 
 *Name:* %s
 *Description:* %s
@@ -39,10 +41,10 @@ func (t *Telegram) newAlertInfoDialog() *dialog.Dialog {
 				triggerURL,
 			)
 
-			msg := tgbotapi.NewMessage(u.ChatID, replyText)
-			msg.ParseMode = tgbotapi.ModeMarkdown
-
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return dialog.Success, nil
 		}))

@@ -109,14 +109,23 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	updates.Clear()
 
 	for update := range updates {
-		t.processUpdate(update)
+		err = t.processUpdate(update)
+		if err != nil {
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+			msg.Text = "We are sorry. A fatal error occured. A developer will have a look into this.\n" +
+				"Unfortunately your current action was reset by this. Please try again."
+			t.bot.Send(msg)
+
+			log.Printf("Telegram runtime error: %s", err.Error())
+		}
+
 	}
 
 	log.Print("Telegram bot shutdown")
 	return nil
 }
 
-func (t *Telegram) processUpdate(update tgbotapi.Update) {
+func (t *Telegram) processUpdate(update tgbotapi.Update) error {
 
 	if update.Message != nil {
 
@@ -129,10 +138,11 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 			))
 
 			if err != nil {
-				log.Printf("Error while writing userdata: %s", err.Error())
+				return fmt.Errorf("Error while writing userdata: %s", err.Error())
 			}
 		} else if err != nil {
-			log.Printf("Error while reading userdata: %s", err.Error())
+			return fmt.Errorf("Error while reading userdata: %s", err.Error())
+
 		}
 
 		dialogUpdate := Update{
@@ -156,29 +166,31 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) {
 				"You are back at the start. Send me a command to continue.",
 			)
 			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return err
+			}
+
 			break
 		case "":
 			break
 		default:
 			err := t.conversation.Next(dialogUpdate, update.Message.Chat.ID)
-			if err != nil {
+			if err == dialog.ErrNoMatch {
 				msg := tgbotapi.NewMessage(dialogUpdate.ChatID, "")
-
-				switch err {
-				case dialog.ErrNoMatch:
-					msg.Text = "I dont know what to do with this. Please use the provided commands or use /exit if something is not working."
-				default:
-					msg.Text = "We are sorry. A fatal error occured. A developer will have a look into this.\n" +
-						"Unfortunately your current action was reset by this. Please try again."
-
-					log.Printf("Telegram user(%s) error: %s", user.Username, err.Error())
+				msg.Text = "I dont know what to do with this. Please use the provided commands or use /exit if something is not working."
+				_, err = t.bot.Send(msg)
+				if err != nil {
+					return err
 				}
 
-				t.bot.Send(msg)
+			} else if err != nil {
+				return err
 			}
 		}
 	}
+
+	return nil
 }
 
 func (t *Telegram) newFileReader(file multipart.FileHeader) (tgbotapi.FileReader, error) {

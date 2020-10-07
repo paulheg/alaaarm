@@ -20,7 +20,11 @@ func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 
 			if u.User.ID == alert.OwnerID {
 				msg := tgbotapi.NewMessage(u.ChatID, "You cant unsubscribe from your own alert. Use /delete to remove it.")
-				t.bot.Send(msg)
+				_, err := t.bot.Send(msg)
+				if err != nil {
+					return dialog.Reset, err
+				}
+
 				return dialog.Success, nil
 			}
 
@@ -32,7 +36,11 @@ func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 			msg.Text = emoji.Sprintf(":check_mark_button: You are succesfully unsubscribed from the %s alert.", alert.Name)
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Success, nil
 		}))
 

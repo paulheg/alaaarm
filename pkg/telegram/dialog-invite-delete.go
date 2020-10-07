@@ -25,7 +25,11 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 			invite, err := t.repository.GetInviteByAlertID(alert.ID)
 			if err == sql.ErrNoRows {
 				msg.Text = fmt.Sprintf("There was no invite to delete for the %s alert.", alert.Name)
-				t.bot.Send(msg)
+				_, err := t.bot.Send(msg)
+				if err != nil {
+					return dialog.Reset, err
+				}
+
 				return dialog.Reset, nil
 			} else if err != nil {
 				return dialog.Reset, err
@@ -38,7 +42,11 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 				alert.Name,
 			)
 
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Next, nil
 		})).Append(t.newYesNoDialog(
 		// on yes
@@ -56,7 +64,10 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 			msg.Text = emoji.Sprint(":check_mark_button: The invite was successfuly deleted.")
-			t.bot.Send(msg)
+			_, err = t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
 			return dialog.Success, nil
 		},
@@ -64,7 +75,11 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 			msg.Text = emoji.Sprint(":cross_mark: The invite was not deleted.")
-			t.bot.Send(msg)
+			_, err := t.bot.Send(msg)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
 			return dialog.Success, nil
 		},
 	))
