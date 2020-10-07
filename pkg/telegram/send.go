@@ -7,14 +7,14 @@ import (
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
-type chattableCreate func(id int64, file tgbotapi.FileReader) tgbotapi.Chattable
-type chattableShare func(id int64, fileID string) tgbotapi.Chattable
+type chattableCreate func(id int64, file tgbotapi.FileReader, message string) tgbotapi.Chattable
+type chattableShare func(id int64, fileID string, message string) tgbotapi.Chattable
 type getFileKey func(msg tgbotapi.Message) (string, error)
 
-func (t *Telegram) shareToAll(receivers []models.User, file tgbotapi.FileReader, create chattableCreate, fileID getFileKey, share chattableShare) error {
+func (t *Telegram) shareToAll(receivers []models.User, file tgbotapi.FileReader, message string, create chattableCreate, fileID getFileKey, share chattableShare) error {
 
 	first := receivers[0]
-	createFile := create(first.TelegramID, file)
+	createFile := create(first.TelegramID, file, message)
 
 	msg, err := t.bot.Send(createFile)
 	if err != nil {
@@ -27,7 +27,7 @@ func (t *Telegram) shareToAll(receivers []models.User, file tgbotapi.FileReader,
 	}
 
 	for _, receiver := range receivers[1:] {
-		chattable := share(receiver.TelegramID, key)
+		chattable := share(receiver.TelegramID, key, message)
 
 		_, err = t.bot.Send(chattable)
 		if err != nil {
@@ -38,7 +38,7 @@ func (t *Telegram) shareToAll(receivers []models.User, file tgbotapi.FileReader,
 	return nil
 }
 
-func (t *Telegram) sendImage(alert models.Alert, image tgbotapi.FileReader) error {
+func (t *Telegram) sendImageToAll(alert models.Alert, image tgbotapi.FileReader, message string) error {
 
 	receivers, err := t.repository.GetAlertReceiver(alert)
 	if err != nil {
@@ -47,8 +47,11 @@ func (t *Telegram) sendImage(alert models.Alert, image tgbotapi.FileReader) erro
 
 	receivers = append(receivers, alert.Owner)
 
-	create := func(id int64, file tgbotapi.FileReader) tgbotapi.Chattable {
-		return tgbotapi.NewPhotoUpload(id, file)
+	create := func(id int64, file tgbotapi.FileReader, message string) tgbotapi.Chattable {
+		foto := tgbotapi.NewPhotoUpload(id, file)
+		foto.Caption = message
+
+		return foto
 	}
 
 	fileID := func(msg tgbotapi.Message) (string, error) {
@@ -64,14 +67,17 @@ func (t *Telegram) sendImage(alert models.Alert, image tgbotapi.FileReader) erro
 		return "", errPhotoIDMissing
 	}
 
-	share := func(id int64, fileID string) tgbotapi.Chattable {
-		return tgbotapi.NewPhotoShare(id, fileID)
+	share := func(id int64, fileID string, messsage string) tgbotapi.Chattable {
+		foto := tgbotapi.NewPhotoShare(id, fileID)
+		foto.Caption = message
+
+		return foto
 	}
 
-	return t.shareToAll(receivers, image, create, fileID, share)
+	return t.shareToAll(receivers, image, message, create, fileID, share)
 }
 
-func (t *Telegram) sendDocument(alert models.Alert, document tgbotapi.FileReader) error {
+func (t *Telegram) sendDocumentToAll(alert models.Alert, document tgbotapi.FileReader, message string) error {
 
 	receivers, err := t.repository.GetAlertReceiver(alert)
 	if err != nil {
@@ -80,8 +86,11 @@ func (t *Telegram) sendDocument(alert models.Alert, document tgbotapi.FileReader
 
 	receivers = append(receivers, alert.Owner)
 
-	create := func(id int64, file tgbotapi.FileReader) tgbotapi.Chattable {
-		return tgbotapi.NewDocumentUpload(id, file)
+	create := func(id int64, file tgbotapi.FileReader, message string) tgbotapi.Chattable {
+		document := tgbotapi.NewDocumentUpload(id, file)
+		document.Caption = message
+
+		return document
 	}
 
 	fileID := func(msg tgbotapi.Message) (string, error) {
@@ -91,14 +100,17 @@ func (t *Telegram) sendDocument(alert models.Alert, document tgbotapi.FileReader
 		return "", errDocumentIDMissing
 	}
 
-	share := func(id int64, fileID string) tgbotapi.Chattable {
-		return tgbotapi.NewDocumentShare(id, fileID)
+	share := func(id int64, fileID string, message string) tgbotapi.Chattable {
+		document := tgbotapi.NewDocumentShare(id, fileID)
+		document.Caption = message
+
+		return document
 	}
 
-	return t.shareToAll(receivers, document, create, fileID, share)
+	return t.shareToAll(receivers, document, message, create, fileID, share)
 }
 
-func (t *Telegram) sendToAll(alert models.Alert, message string) error {
+func (t *Telegram) sendMessageToAll(alert models.Alert, message string) error {
 	receivers, err := t.repository.GetAlertReceiver(alert)
 	if err != nil {
 		return err
