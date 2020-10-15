@@ -15,7 +15,7 @@ curl -X GET "http://localhost/api/v1/alert/{token}/trigger?m=Hello+World"
 With this command & URL you send the image `test.jpg` with the caption "I showed you my code please respond".
 
 ````bash
-curl -X POST "http://localhost/api/v1/alert/{token}/trigger?m=I+showed+you+my+code+please+respond" -F "image=@test.jpg"
+curl -X POST "http://localhost/api/v1/alert/{token}/trigger?m=I+showed+you+my+code+please+respond" -F "file=@test.jpg"
 ````
 
 > replace localhost with the actual domain *alaaarm* is hosted on
