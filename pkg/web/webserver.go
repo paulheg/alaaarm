@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"net/http"
 	"net/url"
@@ -33,11 +33,12 @@ type Webserver interface {
 type FiberWebserver struct {
 	config    *Configuration
 	server    *fiber.App
+	log       *logrus.Entry
 	endpoints map[string]endpoints.Endpoint
 }
 
 // NewWebserver creates a new Webserver
-func NewWebserver(config *Configuration) Webserver {
+func NewWebserver(config *Configuration, log *logrus.Logger) Webserver {
 
 	webApp := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
@@ -48,6 +49,7 @@ func NewWebserver(config *Configuration) Webserver {
 		endpoints: make(map[string]endpoints.Endpoint),
 		server:    webApp,
 		config:    config,
+		log:       log.WithField("service", "webserver"),
 	}
 
 }
@@ -72,12 +74,14 @@ func (w *FiberWebserver) InitializeWebserver() error {
 		token := c.Params("token")
 		message := c.Query("m")
 
-		log.WithFields(log.Fields{
+		webLogger := w.log.WithFields(logrus.Fields{
 			"alert_token": token,
 			"message":     message,
 			"ip":          c.IP(),
 			"user_agent":  c.Request().Header.UserAgent(),
-		}).Info("Triggering message over web interface.", token, message)
+		})
+
+		webLogger.Debug("Triggering message over web interface")
 
 		if e, ok := w.endpoints["telegram"]; ok {
 			err = e.NotifyAll(token, message, nil)
@@ -88,14 +92,7 @@ func (w *FiberWebserver) InitializeWebserver() error {
 		if err == sql.ErrNoRows {
 			return c.SendStatus(http.StatusNotFound)
 		} else if err != nil {
-
-			log.WithFields(log.Fields{
-				"alert_token": token,
-				"message":     message,
-				"ip":          c.IP(),
-				"user_agent":  c.Request().Header.UserAgent(),
-			}).Error(err.Error())
-
+			webLogger.Error(err.Error())
 			return c.SendStatus(http.StatusInternalServerError)
 		}
 
@@ -106,15 +103,18 @@ func (w *FiberWebserver) InitializeWebserver() error {
 		token := c.Params("token")
 		message := c.Query("m")
 
+		webLogger := w.log.WithFields(logrus.Fields{
+			"alert_token": token,
+			"message":     message,
+			"ip":          c.IP(),
+			"user_agent":  c.Request().Header.UserAgent(),
+		})
+
+		webLogger.Debug("Triggering message over web interface")
+
 		file, err := c.FormFile("file")
 		if err != nil {
-			log.WithFields(log.Fields{
-				"alert_token": token,
-				"message":     message,
-				"ip":          c.IP(),
-				"user_agent":  c.Request().Header.UserAgent(),
-			}).Error(err.Error())
-
+			webLogger.Error(err)
 			return c.SendStatus(http.StatusInternalServerError)
 		}
 
@@ -127,13 +127,7 @@ func (w *FiberWebserver) InitializeWebserver() error {
 		if err == sql.ErrNoRows {
 			return c.SendStatus(http.StatusNotFound)
 		} else if err != nil {
-			log.WithFields(log.Fields{
-				"alert_token": token,
-				"message":     message,
-				"ip":          c.IP(),
-				"user_agent":  c.Request().Header.UserAgent(),
-			}).Error(err.Error())
-
+			webLogger.Error(err)
 			return c.SendStatus(http.StatusInternalServerError)
 		}
 
@@ -147,14 +141,20 @@ func (w *FiberWebserver) InitializeWebserver() error {
 func (w *FiberWebserver) Run(wg *sync.WaitGroup) error {
 	defer wg.Done()
 
-	log.Info("Webserver listening...")
+	w.log.Info("Webserver listening...")
 
 	return w.server.Listen(":" + w.config.Port)
 }
 
 // Quit shuts down the webserver
 func (w *FiberWebserver) Quit() error {
-	return w.server.Shutdown()
+	err := w.server.Shutdown()
+	if err != nil {
+		return err
+	}
+	w.log.Info("Webserver shutdown")
+
+	return nil
 }
 
 // AlertTriggerURL creates an URL to trigger the given alert

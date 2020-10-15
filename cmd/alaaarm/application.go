@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/paulheg/alaaarm/pkg/repository"
 	"github.com/paulheg/alaaarm/pkg/repository/postgres"
@@ -25,6 +25,7 @@ type Application struct {
 	repository repository.Repository
 	telegram   *telegram.Telegram
 	web        web.Webserver
+	log        *logrus.Logger
 }
 
 // Configuration holds the application configurations
@@ -36,7 +37,6 @@ type Configuration struct {
 }
 
 var defaultConfig = &Configuration{
-	Logging: "warn",
 	Repository: &repository.Configuration{
 		ConnectionString:   "./database.db",
 		MigrationDirectory: "./migration",
@@ -51,9 +51,11 @@ var defaultConfig = &Configuration{
 	},
 }
 
-func newApplication() *Application {
+func newApplication(log *logrus.Logger) *Application {
 
-	a := &Application{}
+	a := &Application{
+		log: log,
+	}
 
 	return a
 }
@@ -61,7 +63,7 @@ func newApplication() *Application {
 // LoadConfiguration loads the configuration file
 func (a *Application) LoadConfiguration(path string) error {
 
-	log.Info("Reading configuration")
+	a.log.Info("Reading configuration")
 
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -74,7 +76,7 @@ func (a *Application) LoadConfiguration(path string) error {
 	}
 
 	a.config = config
-	log.Info("Configuration was succesfully loaded")
+	a.log.Info("Configuration was succesfully loaded")
 	return nil
 }
 
@@ -91,7 +93,7 @@ func (a *Application) CreateConfiguration(path string) error {
 		return err
 	}
 
-	log.Infof("The default configuration file was written to %s", path)
+	a.log.Infof("The default configuration file was written to %s", path)
 
 	return nil
 }
@@ -113,14 +115,19 @@ func (a *Application) Run() {
 
 // Quit shuts down the application
 func (a *Application) Quit() error {
-	err := a.telegram.Quit()
-	if err != nil {
-		return err
+
+	if a.telegram != nil {
+		err := a.telegram.Quit()
+		if err != nil {
+			return err
+		}
 	}
 
-	err = a.web.Quit()
-	if err != nil {
-		return err
+	if a.web != nil {
+		err := a.web.Quit()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -133,21 +140,6 @@ func (a *Application) Initialize() error {
 	if a.config == nil {
 		return ErrConfigurationMissing
 	}
-
-	var logLevel log.Level
-
-	switch a.config.Logging {
-	case "info":
-		logLevel = log.InfoLevel
-	case "warn":
-		logLevel = log.WarnLevel
-	case "error":
-		logLevel = log.ErrorLevel
-	default:
-		logLevel = log.WarnLevel
-	}
-
-	log.SetLevel(logLevel)
 
 	err = a.initializeDatabase()
 	if err != nil {
@@ -183,7 +175,7 @@ func (a *Application) initializeDatabase() error {
 
 // initializeWebserver initializes the webserver
 func (a *Application) initializeWebserver() error {
-	a.web = web.NewWebserver(a.config.Web)
+	a.web = web.NewWebserver(a.config.Web, a.log)
 	err := a.web.InitializeWebserver()
 
 	return err
@@ -193,7 +185,7 @@ func (a *Application) initializeWebserver() error {
 func (a *Application) initializeTelegram() error {
 	var err error
 
-	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web)
+	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web, a.log)
 
 	return err
 }
