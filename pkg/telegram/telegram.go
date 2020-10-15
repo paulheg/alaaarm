@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/kyokomi/emoji"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"mime/multipart"
 	"strings"
@@ -45,10 +45,11 @@ type Telegram struct {
 	repository   repository.Repository
 	webserver    web.Webserver
 	conversation *dialog.Manager
+	log          *logrus.Entry
 }
 
 // NewTelegram creates a new instance of a Telegram
-func NewTelegram(config *Configuration, repository repository.Repository, webserver web.Webserver) (*Telegram, error) {
+func NewTelegram(config *Configuration, repository repository.Repository, webserver web.Webserver, logger *logrus.Logger) (*Telegram, error) {
 
 	// connect to telegram
 	bot, err := tgbotapi.NewBotAPI(config.APIKey)
@@ -56,33 +57,35 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 		return nil, err
 	}
 
-	bot.Debug = false
-	log.WithField("bot_name", bot.Self.UserName).Info("Authorized Telegram bot.")
-
-	tg := &Telegram{
+	t := &Telegram{
 		bot:        bot,
 		repository: repository,
 		config:     config,
 		webserver:  webserver,
+		log:        logger.WithField("service", "telegram"),
 	}
+
+	tgbotapi.SetLogger(t.log)
+	bot.Debug = false
+	t.log.WithField("bot_name", bot.Self.UserName).Debug("Authorized Telegram bot.")
 
 	// create new dialog
 	root := dialog.NewRoot()
 	root.Branch(
-		tg.command("start").Append(tg.newStartDialog()),
-		tg.command("create").Append(tg.newCreateAlertDialog()),
-		tg.command("delete").Append(tg.newDeleteDialog()),
-		tg.command("info").Append(tg.newInfoDialog()),
-		tg.command("alert_info").Append(tg.newAlertInfoDialog()),
-		tg.command("unsubscribe").Append(tg.newAlertUnsubscribeDialog()),
-		tg.command("change_alert_token").Append(tg.newAlertChangeTokenDialog()),
-		tg.command("invite").Append(tg.newAlertInviteDialog()),
-		tg.command("delete_invite").Append(tg.newInviteDeleteDiaolg()),
+		t.command("start").Append(t.newStartDialog()),
+		t.command("create").Append(t.newCreateAlertDialog()),
+		t.command("delete").Append(t.newDeleteDialog()),
+		t.command("info").Append(t.newInfoDialog()),
+		t.command("alert_info").Append(t.newAlertInfoDialog()),
+		t.command("unsubscribe").Append(t.newAlertUnsubscribeDialog()),
+		t.command("change_alert_token").Append(t.newAlertChangeTokenDialog()),
+		t.command("invite").Append(t.newAlertInviteDialog()),
+		t.command("delete_invite").Append(t.newInviteDeleteDiaolg()),
 	)
 
-	tg.conversation = dialog.NewManager(root)
+	t.conversation = dialog.NewManager(root)
 
-	return tg, nil
+	return t, nil
 }
 
 // Quit shuts down the telegram bot
@@ -104,7 +107,7 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 		return err
 	}
 
-	log.Info("Listening to telegram updates...")
+	t.log.Info("Listening to telegram updates...")
 
 	// Optional: wait for updates and clear them if you don't want to handle
 	// a large backlog of old messages
@@ -119,12 +122,12 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 				"Unfortunately your current action was reset by this. Please try again."
 			t.bot.Send(msg)
 
-			log.WithField("error", err.Error()).Error("Telegram runtime error")
+			t.log.WithError(err).Error("Telegram runtime error")
 		}
 
 	}
 
-	log.Info("Telegram bot shutdown")
+	t.log.Info("Telegram bot shutdown")
 	return nil
 }
 
@@ -155,10 +158,10 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) error {
 			ChatID: update.Message.Chat.ID,
 		}
 
-		log.WithFields(log.Fields{
+		t.log.WithFields(logrus.Fields{
 			"userID":  dialogUpdate.User.ID,
 			"message": dialogUpdate.Text,
-		}).Info("New Message")
+		}).Debug("New Message")
 
 		// commands
 		switch update.Message.Text {
