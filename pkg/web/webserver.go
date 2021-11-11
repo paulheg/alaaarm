@@ -78,7 +78,7 @@ func (w *FiberWebserver) InitializeWebserver() error {
 			"alert_token": token,
 			"message":     message,
 			"ip":          c.IP(),
-			"user_agent":  c.Request().Header.UserAgent(),
+			"user_agent":  string(c.Request().Header.UserAgent()),
 		})
 
 		webLogger.Debug("Triggering message over web interface")

@@ -8,12 +8,10 @@ import (
 )
 
 func (t *Telegram) newDeleteDialog() *dialog.Dialog {
-	const AlertKey = "alert"
-
 	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value("alert").(models.Alert)
+			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
 
 			if !ok {
 				return dialog.Reset, errContextDataMissing
@@ -40,7 +38,7 @@ Do you want to delete the alert?`, alert.Name)
 			var err error
 			msg := tgbotapi.NewMessage(u.ChatID, "")
 
-			alert, ok := ctx.Value(AlertKey).(models.Alert)
+			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}

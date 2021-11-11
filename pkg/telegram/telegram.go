@@ -73,7 +73,7 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	// create new dialog
 	root := dialog.NewRoot()
 	root.Branch(
-		t.command("start", "").Append(t.newStartDialog()),
+		t.command("start", "Start talking to the bot").Append(t.newStartDialog()),
 		t.command("create", "Create new Alert").Append(t.newCreateAlertDialog()),
 		t.command("delete", "Delete a previously created invite").Append(t.newDeleteDialog()),
 		t.command("info", "Get info about your created or subscribed alerts").Append(t.newInfoDialog()),

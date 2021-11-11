@@ -1,12 +1,12 @@
 # use go image
-FROM golang AS builder
+FROM golang:1.17.1-alpine AS builder
 
 # copy source files to GO HOME
 COPY . /go/src/github.com/paulheg/alaaarm
 
 # dependency management
 WORKDIR /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/
-RUN go get -d ./...
+RUN go mod download
 
 # build
 RUN CGO_ENABLED=0 GOOS=linux go build -o server /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/ 
