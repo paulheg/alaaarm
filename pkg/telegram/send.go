@@ -1,7 +1,7 @@
 package telegram
 
 import (
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
@@ -46,7 +46,7 @@ func (t *Telegram) sendImageToAll(alert models.Alert, image tgbotapi.FileReader,
 	receivers = append(receivers, alert.Owner)
 
 	create := func(id int64, file tgbotapi.FileReader, message string) tgbotapi.Chattable {
-		foto := tgbotapi.NewPhotoUpload(id, file)
+		foto := tgbotapi.NewPhoto(id, file)
 		foto.Caption = message
 
 		return foto
@@ -55,7 +55,7 @@ func (t *Telegram) sendImageToAll(alert models.Alert, image tgbotapi.FileReader,
 	fileID := func(msg tgbotapi.Message) (string, error) {
 
 		if msg.Photo != nil {
-			photos := (*msg.Photo)
+			photos := msg.Photo
 
 			if len(photos) > 0 {
 				return photos[0].FileID, nil
@@ -66,7 +66,7 @@ func (t *Telegram) sendImageToAll(alert models.Alert, image tgbotapi.FileReader,
 	}
 
 	share := func(id int64, fileID string, messsage string) tgbotapi.Chattable {
-		foto := tgbotapi.NewPhotoShare(id, fileID)
+		foto := tgbotapi.NewPhoto(id, tgbotapi.FileID(fileID))
 		foto.Caption = message
 
 		return foto
@@ -85,7 +85,7 @@ func (t *Telegram) sendDocumentToAll(alert models.Alert, document tgbotapi.FileR
 	receivers = append(receivers, alert.Owner)
 
 	create := func(id int64, file tgbotapi.FileReader, message string) tgbotapi.Chattable {
-		document := tgbotapi.NewDocumentUpload(id, file)
+		document := tgbotapi.NewDocument(id, file)
 		document.Caption = message
 
 		return document
@@ -99,7 +99,7 @@ func (t *Telegram) sendDocumentToAll(alert models.Alert, document tgbotapi.FileR
 	}
 
 	share := func(id int64, fileID string, message string) tgbotapi.Chattable {
-		document := tgbotapi.NewDocumentShare(id, fileID)
+		document := tgbotapi.NewDocument(id, tgbotapi.FileID(fileID))
 		document.Caption = message
 
 		return document

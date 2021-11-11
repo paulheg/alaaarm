@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 	"github.com/paulheg/alaaarm/pkg/endpoints"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
