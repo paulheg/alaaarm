@@ -8,6 +8,10 @@ import (
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
+const (
+	ALERT_SELECTION_CONTEXT_KEY = "alert"
+)
+
 func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }

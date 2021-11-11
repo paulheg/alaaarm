@@ -15,7 +15,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value("alert").(models.Alert)
+			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}

@@ -1,93 +1,125 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
 )
 
-var version = flag.Bool("version", false, "Show alaaarm version")
-var configPath = flag.String("config", "./config/config.json", "Path to configuration file")
-var logLevel = flag.String("loglevel", "info", "Loggin Level (debug, info, warn, error)")
-
-var log = logrus.New()
+const (
+	LOG_LEVEL_FLAG_NAME   = "loglevel"
+	CONFIG_FILE_FLAG_NAME = "config"
+)
 
 func main() {
-
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT)
 
+	log := logrus.New()
 	log.SetOutput(os.Stdout)
-	setLogLevel()
 
-	flag.Usage = func() {
-		helpCmd()
-	}
-	flag.Parse()
-
-	command := flag.Arg(0)
-
-	switch command {
-
-	case "check":
-		checkCmd()
-	case "install":
-		installCmd()
-	default:
-		fallthrough
-	case "run":
-		runCmd(gracefulStop)
+	defaultFlags := []cli.Flag{
+		&cli.PathFlag{
+			Name:  CONFIG_FILE_FLAG_NAME,
+			Usage: "Load configurationo from `FILE`.json",
+			Value: "./config.json",
+		},
+		&cli.StringFlag{
+			Name:  LOG_LEVEL_FLAG_NAME,
+			Usage: "Set the level of detail the logs contain (debug, info, warn, error)",
+			Value: "info",
+		},
 	}
 
-}
+	app := &cli.App{
+		Name:        "Alaaarm Bot",
+		Description: "Server that is in controll of the Telegram bot and the web-interface triggering alerts",
+		Commands: []*cli.Command{
+			{
+				Name:        "run",
+				Description: "run the server",
+				Action: func(c *cli.Context) error {
+					setLogLevel(log, c.String(LOG_LEVEL_FLAG_NAME))
+					runCmd(log, c.Path(CONFIG_FILE_FLAG_NAME), gracefulStop)
+					return nil
+				},
+				Flags: defaultFlags,
+			},
+			{
+				Name: "config",
+				Subcommands: []*cli.Command{
+					{
+						Name:        "check",
+						Description: "Check the configuration file",
+						Flags:       defaultFlags,
+						Action: func(c *cli.Context) error {
+							setLogLevel(log, c.String(LOG_LEVEL_FLAG_NAME))
+							application := newApplication(log)
 
-func helpCmd() {
-	_, err := os.Stderr.WriteString(
-		`usage alaaarm <command> [<args>]
-Commands:
-	run            Run the bot (Default)
-	check          Check the config file for missing fields
-	install        Start the installation process
-	version        Version of the server
-`)
+							err := application.LoadConfiguration(c.Path(CONFIG_FILE_FLAG_NAME))
+							if err != nil {
+								log.WithError(err).Fatal("An error occured while reading the configuration: ")
+								return err
+							}
+							log.Info("Config file seems correct")
+							return nil
+						},
+					},
+					{
+						Name:        "create",
+						Description: "Create a default configuration file",
+						Flags:       defaultFlags,
+						Action: func(c *cli.Context) error {
+							setLogLevel(log, c.String(LOG_LEVEL_FLAG_NAME))
+							application := newApplication(log)
 
+							log.Info("Writing default configuration")
+
+							err := application.CreateConfiguration(c.Path(CONFIG_FILE_FLAG_NAME))
+							if err != nil {
+								log.WithError(err).Fatal("There was an error writing the default configuration")
+							}
+							return nil
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	os.Exit(0)
 }
 
-func checkCmd() {
-	application := newApplication(log)
-
-	err := application.LoadConfiguration(*configPath)
-	if err != nil {
-		log.WithError(err).Fatal("An error occured while reading the configuration: ")
+func setLogLevel(log *logrus.Logger, logLevel string) {
+	switch logLevel {
+	case "info":
+		log.SetLevel(logrus.InfoLevel)
+		break
+	case "warn":
+		log.SetLevel(logrus.WarnLevel)
+		break
+	case "error":
+		log.SetLevel(logrus.ErrorLevel)
+		break
+	case "debug":
+		log.SetLevel(logrus.DebugLevel)
+		break
+	default:
+		log.SetLevel(logrus.InfoLevel)
 	}
-	log.Info("Config file seems correct")
-	os.Exit(0)
 }
 
-func installCmd() {
+func runCmd(log *logrus.Logger, configurationPath string, quit chan os.Signal) {
 	application := newApplication(log)
 
-	log.Info("Writing default configuration")
-
-	err := application.CreateConfiguration(*configPath)
-	if err != nil {
-		log.WithError(err).Fatal("There was an error writing the default configuration")
-	}
-	os.Exit(0)
-}
-
-func runCmd(quit chan os.Signal) {
-	application := newApplication(log)
-
-	err := application.LoadConfiguration(*configPath)
+	err := application.LoadConfiguration(configurationPath)
 	if err != nil {
 		log.WithError(err).Fatal("An error occured while reading the configuration")
 	}
@@ -110,19 +142,4 @@ func runCmd(quit chan os.Signal) {
 	application.Run()
 
 	log.Info("Application finished")
-}
-
-func setLogLevel() {
-	switch *logLevel {
-	case "info":
-		log.SetLevel(logrus.InfoLevel)
-	case "warn":
-		log.SetLevel(logrus.WarnLevel)
-	case "error":
-		log.SetLevel(logrus.ErrorLevel)
-	case "debug":
-		log.SetLevel(logrus.DebugLevel)
-	default:
-		log.SetLevel(logrus.InfoLevel)
-	}
 }
