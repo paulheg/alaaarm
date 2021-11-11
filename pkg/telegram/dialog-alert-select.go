@@ -3,7 +3,7 @@ package telegram
 import (
 	"fmt"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -12,10 +12,10 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
 
-func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
+func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Alert, error)) *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		alerts, err := t.repository.GetUserSubscribedAlerts(u.User.ID)
+		alerts, err := getAlerts(u)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -51,49 +51,19 @@ func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 		}
 
 		return dialog.Success, nil
-	})).Append(t.alertDetermination())
+	}))
+}
+
+func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
+	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
+		return t.repository.GetUserSubscribedAlerts(u.User.ID)
+	}).Append(t.alertDetermination())
 }
 
 func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
-
-	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-
-		alerts, err := t.repository.GetUserAlerts(u.User.ID)
-		if err != nil {
-			return dialog.Reset, err
-		}
-
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-
-		if len(alerts) == 0 {
-			msg.Text = "You dont have any alerts yet."
-			_, err := t.bot.Send(msg)
-			if err != nil {
-				return dialog.Reset, err
-			}
-
-			return dialog.Reset, nil
-		}
-
-		// save the alerts
-		ctx.Set("alerts", alerts)
-
-		// build keyboard
-		buttons := make([]tgbotapi.KeyboardButton, 0)
-
-		for _, alert := range alerts {
-			buttons = append(buttons, tgbotapi.NewKeyboardButtonRow(tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)))...)
-		}
-		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
-
-		msg.Text = "Select the alert"
-		_, err = t.bot.Send(msg)
-		if err != nil {
-			return dialog.Reset, err
-		}
-
-		return dialog.Success, nil
-	})).Append(t.alertDetermination())
+	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
+		return t.repository.GetUserAlerts(u.User.ID)
+	}).Append(t.alertDetermination())
 }
 
 func (t *Telegram) alertDetermination() *dialog.Dialog {
@@ -136,8 +106,8 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 		msg.Text = fmt.Sprintf("You selected the '%s' alert.", alert.Name)
 
 		// reset keyboard
-		msg.ReplyMarkup = tgbotapi.ReplyKeyboardHide{
-			HideKeyboard: true,
+		msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{
+			RemoveKeyboard: true,
 		}
 		msg.ParseMode = tgbotapi.ModeMarkdown
 		_, err = t.bot.Send(msg)

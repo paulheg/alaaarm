@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 	"github.com/paulheg/alaaarm/pkg/repository"
@@ -46,6 +46,7 @@ type Telegram struct {
 	webserver    web.Webserver
 	conversation *dialog.Manager
 	log          *logrus.Entry
+	commands     []tgbotapi.BotCommand
 }
 
 // NewTelegram creates a new instance of a Telegram
@@ -72,16 +73,23 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	// create new dialog
 	root := dialog.NewRoot()
 	root.Branch(
-		t.command("start").Append(t.newStartDialog()),
-		t.command("create").Append(t.newCreateAlertDialog()),
-		t.command("delete").Append(t.newDeleteDialog()),
-		t.command("info").Append(t.newInfoDialog()),
-		t.command("alert_info").Append(t.newAlertInfoDialog()),
-		t.command("unsubscribe").Append(t.newAlertUnsubscribeDialog()),
-		t.command("change_alert_token").Append(t.newAlertChangeTokenDialog()),
-		t.command("invite").Append(t.newAlertInviteDialog()),
-		t.command("delete_invite").Append(t.newInviteDeleteDiaolg()),
+		t.command("start", "").Append(t.newStartDialog()),
+		t.command("create", "Create new Alert").Append(t.newCreateAlertDialog()),
+		t.command("delete", "Delete a previously created invite").Append(t.newDeleteDialog()),
+		t.command("info", "Get info about your created or subscribed alerts").Append(t.newInfoDialog()),
+		t.command("alert_info", "Get info about an alert").Append(t.newAlertInfoDialog()),
+		t.command("unsubscribe", "Unsubscribe from an alert you were invited to").Append(t.newAlertUnsubscribeDialog()),
+		t.command("change_alert_token", "Change the alert URL token").Append(t.newAlertChangeTokenDialog()),
+		t.command("invite", "Create an invitation link for your alert").Append(t.newAlertInviteDialog()),
+		t.command("delete_invite", "Delete a previously created invite").Append(t.newInviteDeleteDiaolg()),
 	)
+
+	t.log.Debug("Configure bot commands per request")
+	_, err = t.bot.Request(tgbotapi.NewSetMyCommands(t.commands...))
+	if err != nil {
+		t.log.WithError(err).Debug("Bot commands could not be configured per request")
+		return t, err
+	}
 
 	t.conversation = dialog.NewManager(root)
 
@@ -99,13 +107,10 @@ func (t *Telegram) Quit() error {
 func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	defer wg.Done()
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates, err := t.bot.GetUpdatesChan(u)
-	if err != nil {
-		return err
-	}
+	updates := t.bot.GetUpdatesChan(tgbotapi.UpdateConfig{
+		Timeout: 60,
+		Offset:  0,
+	})
 
 	t.log.Info("Listening to telegram updates...")
 
@@ -115,7 +120,7 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	updates.Clear()
 
 	for update := range updates {
-		err = t.processUpdate(update)
+		err := t.processUpdate(update)
 		if err != nil {
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 			msg.Text = "We are sorry. A fatal error occured. A developer will have a look into this.\n" +
@@ -211,7 +216,6 @@ func (t *Telegram) newFileReader(file multipart.FileHeader) (tgbotapi.FileReader
 
 	return tgbotapi.FileReader{
 		Name:   file.Filename,
-		Size:   file.Size,
 		Reader: f,
 	}, nil
 }

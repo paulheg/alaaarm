@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 	"github.com/skip2/go-qrcode"
@@ -38,7 +38,7 @@ func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			msg := tgbotapi.NewPhotoUpload(u.ChatID, tgbotapi.FileBytes{
+			msg := tgbotapi.NewPhoto(u.ChatID, tgbotapi.FileBytes{
 				Name:  "invite_qr.png",
 				Bytes: qrBytes,
 			})
