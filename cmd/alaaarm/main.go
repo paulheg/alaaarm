@@ -24,7 +24,7 @@ func main() {
 	defaultFlags := []cli.Flag{
 		&cli.PathFlag{
 			Name:  CONFIG_FILE_FLAG_NAME,
-			Usage: "Load configurationo from `FILE`.json",
+			Usage: "Load configuration from `FILE`.json",
 			Value: "./config.json",
 		},
 		&cli.StringFlag{
