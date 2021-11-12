@@ -26,7 +26,6 @@ type Repository interface {
 	AlertRepository
 	InviteRepository
 	UserRepository
-	CallerRepository
 
 	migration.VersionRepository
 }
