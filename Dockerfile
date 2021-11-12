@@ -16,5 +16,5 @@ WORKDIR /
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/migration/ /migration
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
 
-ENTRYPOINT [ "./server" ]
+ENTRYPOINT [ "./server", "run", "-config=./config/config.json" ]
 EXPOSE 3000
