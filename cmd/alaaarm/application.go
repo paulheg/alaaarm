@@ -9,7 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/paulheg/alaaarm/pkg/repository"
-	"github.com/paulheg/alaaarm/pkg/repository/postgres"
 	"github.com/paulheg/alaaarm/pkg/telegram"
 	"github.com/paulheg/alaaarm/pkg/web"
 )
@@ -40,7 +39,6 @@ var defaultConfig = &Configuration{
 	Repository: &repository.Configuration{
 		ConnectionString:   "./database.db",
 		MigrationDirectory: "./migration",
-		Database:           "sqlite",
 	},
 	Telegram: &telegram.Configuration{
 		APIKey: "TelegramApiKey",
@@ -163,14 +161,20 @@ func (a *Application) Initialize() error {
 
 // InitializeDatabase initializes the database
 func (a *Application) initializeDatabase() error {
-	a.repository = postgres.New()
+	a.repository = repository.NewPostgres(a.log)
 
 	err := a.repository.InitDatabase(a.config.Repository)
 	if err != nil {
 		return err
 	}
 
-	return a.repository.MigrateDatabase()
+	err = a.repository.MigrateDatabase()
+	if err != nil {
+		a.log.WithError(err).Debug("Error while running migration sql files")
+		return err
+	}
+
+	return nil
 }
 
 // initializeWebserver initializes the webserver

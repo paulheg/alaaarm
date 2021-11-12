@@ -1,103 +1,62 @@
-package postgres
+package repository
 
 import (
 	"database/sql"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"           // postgres driver
 	_ "github.com/mattn/go-sqlite3" // sqlite driver
+	"github.com/paulheg/alaaarm/pkg/migration"
 	"github.com/paulheg/alaaarm/pkg/models"
-	"github.com/paulheg/alaaarm/pkg/repository"
+	"github.com/sirupsen/logrus"
 )
 
-type sqlxdata struct {
+type postgres struct {
 	db     *sqlx.DB
-	config *repository.Configuration
+	config *Configuration
+	log    *logrus.Logger
 }
 
 //New Repository
-func New() repository.Repository {
-	return &sqlxdata{}
-}
-
-func (r *sqlxdata) InitDatabase(config *repository.Configuration) error {
-
-	r.config = config
-
-	switch r.config.Database {
-	case "sqlite":
-		db, err := sqlx.Open("sqlite3", r.config.ConnectionString)
-		if err != nil {
-			return err
-		}
-
-		err = db.Ping()
-		if err != nil {
-			return err
-		}
-
-		r.db = db
-	case "postgres":
-		db, err := sqlx.Open("postgres", r.config.ConnectionString)
-		if err != nil {
-			return err
-		}
-
-		err = db.Ping()
-		if err != nil {
-			return err
-		}
-
-		r.db = db
+func NewPostgres(log *logrus.Logger) Repository {
+	return &postgres{
+		log: log,
 	}
-
-	return nil
 }
 
-func (r *sqlxdata) MigrateDatabase() error {
+func (p *postgres) MigrateDatabase() error {
+	migrator := migration.New(p.db.DB, p, p.config.MigrationDirectory, p.log)
 
-	files, err := ioutil.ReadDir(r.config.MigrationDirectory)
+	return migrator.Migrate()
+}
+
+func (p *postgres) InitDatabase(config *Configuration) error {
+
+	p.config = config
+
+	db, err := sqlx.Open("postgres", p.config.ConnectionString)
 	if err != nil {
 		return err
 	}
 
-	var filenames []string
-
-	for _, file := range files {
-		name := file.Name()
-		if !file.IsDir() && filepath.Ext(name) == ".sql" {
-			filenames = append(filenames, name)
-		}
+	err = db.Ping()
+	if err != nil {
+		return err
 	}
 
-	sort.Strings(filenames)
-
-	for _, filename := range filenames {
-		migrationFile := path.Join(r.config.MigrationDirectory, filename)
-		err = r.runMigration(migrationFile)
-		if err != nil {
-			return err
-		}
-
-		os.Remove(migrationFile)
-	}
+	p.db = db
 
 	return nil
 }
 
 // Invitation Related
-func (r *sqlxdata) CreateInvite(alert models.Alert) (models.Invite, error) {
+func (p *postgres) CreateInvite(alert models.Alert) (models.Invite, error) {
 	var id uint
 
 	invite := models.NewInvite(&alert)
 
-	err := r.db.Get(&id, `INSERT INTO "INVITE" (created_at, alert_id, token, one_time, expiration)
+	err := p.db.Get(&id, `INSERT INTO "INVITE" (created_at, alert_id, token, one_time, expiration)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING id`, invite.CreatedAt, invite.AlertID, invite.Token, invite.OneTime, invite.Expiration)
 
@@ -105,13 +64,13 @@ RETURNING id`, invite.CreatedAt, invite.AlertID, invite.Token, invite.OneTime, i
 		return models.Invite{}, err
 	}
 
-	return r.GetInvite(id)
+	return p.GetInvite(id)
 }
 
-func (r *sqlxdata) GetInviteByToken(token string) (models.Invite, error) {
+func (p *postgres) GetInviteByToken(token string) (models.Invite, error) {
 	var invite models.Invite
 
-	err := r.db.Get(&invite, `SELECT i.* FROM "INVITE" AS i
+	err := p.db.Get(&invite, `SELECT i.* FROM "INVITE" AS i
 WHERE i.token = $1
 AND i.deleted_at IS NULL;`, token)
 
@@ -119,7 +78,7 @@ AND i.deleted_at IS NULL;`, token)
 		return invite, err
 	}
 
-	alert, err := r.GetAlert(invite.AlertID)
+	alert, err := p.GetAlert(invite.AlertID)
 	if err != nil {
 		return invite, err
 	}
@@ -129,10 +88,10 @@ AND i.deleted_at IS NULL;`, token)
 	return invite, err
 }
 
-func (r *sqlxdata) GetInvite(inviteID uint) (models.Invite, error) {
+func (p *postgres) GetInvite(inviteID uint) (models.Invite, error) {
 	var invite models.Invite
 
-	err := r.db.Get(&invite, `SELECT i.* FROM "INVITE" AS i
+	err := p.db.Get(&invite, `SELECT i.* FROM "INVITE" AS i
 WHERE i.id = $1
 AND i.deleted_at IS NULL`, inviteID)
 
@@ -140,7 +99,7 @@ AND i.deleted_at IS NULL`, inviteID)
 		return invite, err
 	}
 
-	alert, err := r.GetAlert(invite.AlertID)
+	alert, err := p.GetAlert(invite.AlertID)
 	if err != nil {
 		return invite, err
 	}
@@ -150,17 +109,17 @@ AND i.deleted_at IS NULL`, inviteID)
 	return invite, err
 }
 
-func (r *sqlxdata) GetInviteByAlertID(alertID uint) (models.Invite, error) {
+func (p *postgres) GetInviteByAlertID(alertID uint) (models.Invite, error) {
 	var invite models.Invite
 
-	err := r.db.Get(&invite, `SELECT i.* FROM "INVITE" AS i
+	err := p.db.Get(&invite, `SELECT i.* FROM "INVITE" AS i
 WHERE i.alert_id = $1
 AND i.deleted_at IS NULL`, alertID)
 
 	return invite, err
 }
 
-func (r *sqlxdata) DeleteInvite(inviteID uint) error {
+func (r *postgres) DeleteInvite(inviteID uint) error {
 
 	result, err := r.db.Exec(`UPDATE "INVITE" AS i
 SET deleted_at = $1
@@ -184,15 +143,15 @@ AND i.deleted_at IS NULL`, time.Now(), inviteID)
 }
 
 // Alert related
-func (r *sqlxdata) CreateAlert(alert models.Alert) (models.Alert, error) {
+func (p *postgres) CreateAlert(alert models.Alert) (models.Alert, error) {
 
 	if alert.Owner.ID <= 0 {
-		return models.Alert{}, repository.ErrMandatoryDataMissing
+		return models.Alert{}, ErrMandatoryDataMissing
 	}
 
 	var id uint
 
-	err := r.db.Get(&id, `INSERT INTO "ALERT" (created_at, name, description, owner_id, token)
+	err := p.db.Get(&id, `INSERT INTO "ALERT" (created_at, name, description, owner_id, token)
 VALUES($1, $2, $3, $4, $5)
 RETURNING id`, alert.CreatedAt, alert.Name, alert.Description, alert.OwnerID, alert.Token)
 
@@ -200,12 +159,12 @@ RETURNING id`, alert.CreatedAt, alert.Name, alert.Description, alert.OwnerID, al
 		return models.Alert{}, err
 	}
 
-	return r.GetAlert(id)
+	return p.GetAlert(id)
 }
 
-func (r *sqlxdata) DeleteAlert(alert models.Alert) error {
+func (p *postgres) DeleteAlert(alert models.Alert) error {
 
-	result, err := r.db.Exec(`UPDATE "ALERT" AS a
+	result, err := p.db.Exec(`UPDATE "ALERT" AS a
 SET deleted_at = $1
 WHERE a.id = $2
 AND a.deleted_at IS NULL;`, time.Now(), alert.ID)
@@ -226,10 +185,10 @@ AND a.deleted_at IS NULL;`, time.Now(), alert.ID)
 	return nil
 }
 
-func (r *sqlxdata) GetAlertReceiver(alert models.Alert) ([]models.User, error) {
+func (p *postgres) GetAlertReceiver(alert models.Alert) ([]models.User, error) {
 	var receiver []models.User
 
-	err := r.db.Select(&receiver, `SELECT u.* FROM "USER" AS u
+	err := p.db.Select(&receiver, `SELECT u.* FROM "USER" AS u
 INNER JOIN "ALERT_RECEIVER" AS ar ON ar.user_id = u.id
 WHERE ar.alert_id = $1
 AND u.deleted_at IS NULL AND ar.deleted_at IS NULL;`, alert.ID)
@@ -237,10 +196,10 @@ AND u.deleted_at IS NULL AND ar.deleted_at IS NULL;`, alert.ID)
 	return receiver, err
 }
 
-func (r *sqlxdata) GetAlertByToken(token string) (models.Alert, error) {
+func (p *postgres) GetAlertByToken(token string) (models.Alert, error) {
 	var alert models.Alert
 
-	err := r.db.Get(&alert, `SELECT a.* FROM "ALERT" AS a
+	err := p.db.Get(&alert, `SELECT a.* FROM "ALERT" AS a
 WHERE a.token = $1
 AND a.deleted_at IS NULL;`, token)
 
@@ -248,7 +207,7 @@ AND a.deleted_at IS NULL;`, token)
 		return alert, err
 	}
 
-	owner, err := r.GetUser(alert.OwnerID)
+	owner, err := p.GetUser(alert.OwnerID)
 	if err != nil {
 		return alert, err
 	}
@@ -258,10 +217,10 @@ AND a.deleted_at IS NULL;`, token)
 	return alert, err
 }
 
-func (r *sqlxdata) GetAlert(id uint) (models.Alert, error) {
+func (p *postgres) GetAlert(id uint) (models.Alert, error) {
 	var alert models.Alert
 
-	err := r.db.Get(&alert, `SELECT a.* FROM "ALERT" AS a
+	err := p.db.Get(&alert, `SELECT a.* FROM "ALERT" AS a
 WHERE a.id = $1
 AND a.deleted_at IS NULL;`, id)
 
@@ -269,7 +228,7 @@ AND a.deleted_at IS NULL;`, id)
 		return alert, err
 	}
 
-	owner, err := r.GetUser(alert.OwnerID)
+	owner, err := p.GetUser(alert.OwnerID)
 	if err != nil {
 		return alert, err
 	}
@@ -279,12 +238,12 @@ AND a.deleted_at IS NULL;`, id)
 	return alert, err
 }
 
-func (r *sqlxdata) UpdateAlertToken(alert models.Alert) (models.Alert, error) {
+func (p *postgres) UpdateAlertToken(alert models.Alert) (models.Alert, error) {
 
 	alert.ChangeToken()
 	alert.UpdatedAt.Scan(time.Now())
 
-	result, err := r.db.Exec(`UPDATE "ALERT" AS a
+	result, err := p.db.Exec(`UPDATE "ALERT" AS a
 SET token = $1, updated_at = $2
 WHERE a.id = $3
 AND a.deleted_at IS NULL;`, alert.Token, alert.UpdatedAt, alert.ID)
@@ -305,20 +264,20 @@ AND a.deleted_at IS NULL;`, alert.Token, alert.UpdatedAt, alert.ID)
 	return alert, err
 }
 
-func (r *sqlxdata) GetUserAlerts(userID uint) ([]models.Alert, error) {
+func (p *postgres) GetUserAlerts(userID uint) ([]models.Alert, error) {
 	var alerts []models.Alert
 
-	err := r.db.Select(&alerts, `SELECT a.* FROM "ALERT" AS a
+	err := p.db.Select(&alerts, `SELECT a.* FROM "ALERT" AS a
 WHERE a.owner_id = $1
 AND a.deleted_at IS NULL;`, userID)
 
 	return alerts, err
 }
 
-func (r *sqlxdata) GetUserSubscribedAlerts(userID uint) ([]models.Alert, error) {
+func (p *postgres) GetUserSubscribedAlerts(userID uint) ([]models.Alert, error) {
 	var alerts []models.Alert
 
-	err := r.db.Select(&alerts, `SELECT a.* FROM "ALERT" AS a
+	err := p.db.Select(&alerts, `SELECT a.* FROM "ALERT" AS a
 INNER JOIN "ALERT_RECEIVER" AS ar ON ar.alert_id = a.id
 WHERE ar.user_id = $1
 AND a.deleted_at IS NULL AND ar.deleted_at IS NULL;`, userID)
@@ -326,11 +285,11 @@ AND a.deleted_at IS NULL AND ar.deleted_at IS NULL;`, userID)
 	return alerts, err
 }
 
-func (r *sqlxdata) AddUserToAlert(alert models.Alert, user models.User) error {
+func (p *postgres) AddUserToAlert(alert models.Alert, user models.User) error {
 
 	alertReceiver := models.NewAlertReceiver(&user, &alert)
 
-	result, err := r.db.NamedExec(`INSERT INTO "ALERT_RECEIVER" (alert_id, user_id, created_at)
+	result, err := p.db.NamedExec(`INSERT INTO "ALERT_RECEIVER" (alert_id, user_id, created_at)
 VALUES(:alert_id, :user_id, :created_at);`, &alertReceiver)
 
 	if err != nil {
@@ -349,9 +308,9 @@ VALUES(:alert_id, :user_id, :created_at);`, &alertReceiver)
 	return nil
 }
 
-func (r *sqlxdata) RemoveUserFromAlert(alert models.Alert, user models.User) error {
+func (p *postgres) RemoveUserFromAlert(alert models.Alert, user models.User) error {
 
-	result, err := r.db.Exec(`DELETE FROM "ALERT_RECEIVER" AS ar
+	result, err := p.db.Exec(`DELETE FROM "ALERT_RECEIVER" AS ar
 WHERE ar.user_id = $1 AND ar.alert_id = $2
 AND ar.deleted_at IS NULL;`, user.ID, alert.ID)
 
@@ -373,13 +332,13 @@ AND ar.deleted_at IS NULL;`, user.ID, alert.ID)
 }
 
 // User functions
-func (r *sqlxdata) CreateUser(user models.User) (models.User, error) {
+func (p *postgres) CreateUser(user models.User) (models.User, error) {
 
 	user.CreatedAt.Scan(time.Now())
 
 	var id uint
 
-	err := r.db.Get(&id, `INSERT INTO "USER" (created_at, username, telegram_id)
+	err := p.db.Get(&id, `INSERT INTO "USER" (created_at, username, telegram_id)
 VALUES($1, $2, $3)
 RETURNING id;`, user.CreatedAt, user.Username, user.TelegramID)
 
@@ -387,32 +346,32 @@ RETURNING id;`, user.CreatedAt, user.Username, user.TelegramID)
 		return models.User{}, err
 	}
 
-	return r.GetUser(id)
+	return p.GetUser(id)
 }
 
-func (r *sqlxdata) GetUser(userID uint) (models.User, error) {
+func (p *postgres) GetUser(userID uint) (models.User, error) {
 	var user models.User
 
-	err := r.db.Get(&user, `SELECT u.* FROM "USER" AS u
+	err := p.db.Get(&user, `SELECT u.* FROM "USER" AS u
 WHERE u.id = $1
 AND u.deleted_at IS NULL`, userID)
 
 	return user, err
 }
 
-func (r *sqlxdata) GetUserTelegram(telegramID int64) (models.User, error) {
+func (p *postgres) GetUserTelegram(telegramID int64) (models.User, error) {
 	var user models.User
 
-	err := r.db.Get(&user, `SELECT u.* FROM "USER" AS u
+	err := p.db.Get(&user, `SELECT u.* FROM "USER" AS u
 WHERE u.telegram_id = $1
 AND u.deleted_at IS NULL`, telegramID)
 
 	return user, err
 }
 
-func (r *sqlxdata) DeleteUser(userID uint) error {
+func (p *postgres) DeleteUser(userID uint) error {
 
-	result, err := r.db.Exec(`UPDATE "USER"
+	result, err := p.db.Exec(`UPDATE "USER"
 SET deleted_at = $1
 WHERE u.id = $2
 AND u.deleted_at IS NULL`, time.Now(), userID)
@@ -427,6 +386,55 @@ AND u.deleted_at IS NULL`, time.Now(), userID)
 	}
 
 	if rows < 1 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+func (p *postgres) GetDatabaseVersion() (int, error) {
+	var exists bool
+
+	err := p.db.Get(&exists, `SELECT EXISTS (
+SELECT FROM information_schema.tables 
+WHERE table_name = 'VERSION'
+);`)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if !exists {
+		return -1, nil
+	}
+
+	var version int
+
+	err = p.db.Get(&version, `SELECT v.version FROM "VERSION" AS v
+ORDER BY v.version desc
+LIMIT 1;`)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return version, nil
+}
+
+func (p *postgres) BumpVersion(newVersion int) error {
+
+	result, err := p.db.Exec(`INSERT INTO "VERSION" (version, updated_at)
+VALUES($1, $2);`, newVersion, time.Now())
+
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
 		return sql.ErrNoRows
 	}
 
