@@ -16,7 +16,7 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
 
-func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Alert, error)) *dialog.Dialog {
+func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Alert, error), onEmptyMessage string) *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 		alerts, err := getAlerts(u)
@@ -27,7 +27,7 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 		msg := tgbotapi.NewMessage(u.ChatID, "")
 
 		if len(alerts) == 0 {
-			msg.Text = "You are not subscribed to anly alerts yet."
+			msg.Text = onEmptyMessage
 			_, err := t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
@@ -61,13 +61,13 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
 		return t.repository.GetUserSubscribedAlerts(u.User.ID)
-	}).Append(t.alertDetermination())
+	}, "You are not subscribed to any alerts yet.").Append(t.alertDetermination())
 }
 
 func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
 	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
 		return t.repository.GetUserAlerts(u.User.ID)
-	}).Append(t.alertDetermination())
+	}, "You have not created any alerts yet.").Append(t.alertDetermination())
 }
 
 func (t *Telegram) alertDetermination() *dialog.Dialog {
