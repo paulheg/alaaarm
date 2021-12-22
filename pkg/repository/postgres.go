@@ -196,6 +196,18 @@ AND u.deleted_at IS NULL AND ar.deleted_at IS NULL;`, alert.ID)
 	return receiver, err
 }
 
+func (p *postgres) GetSubscriberCount(alert models.Alert) (int64, error) {
+
+	var count int64
+
+	err := p.db.Get(&count, `SELECT COUNT(u.*) FROM "USER" AS u
+INNER JOIN "ALERT_RECEIVER" AS ar ON ar.user_id = u.id
+WHERE ar.alert_id = $1
+AND u.deleted_at IS NULL AND ar.deleted_at IS NULL;`, alert.ID)
+
+	return count, err
+}
+
 func (p *postgres) GetAlertByToken(token string) (models.Alert, error) {
 	var alert models.Alert
 

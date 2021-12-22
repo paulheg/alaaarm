@@ -46,6 +46,7 @@ type AlertRepository interface {
 	GetAlert(id uint) (models.Alert, error)
 	UpdateAlertToken(alert models.Alert) (models.Alert, error)
 	GetAlertReceiver(alert models.Alert) ([]models.User, error)
+	GetSubscriberCount(alert models.Alert) (int64, error)
 
 	GetUserAlerts(userID uint) ([]models.Alert, error)
 	GetUserSubscribedAlerts(userID uint) ([]models.Alert, error)
