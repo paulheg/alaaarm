@@ -24,11 +24,8 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 			return dialog.Reset, err
 		}
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-
 		if len(alerts) == 0 {
-			msg.Text = onEmptyMessage
-			_, err := t.bot.Send(msg)
+			_, err := t.bot.Send(t.escapedHTMLMessage(u.ChatID, onEmptyMessage))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -46,9 +43,10 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 				tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)),
 			)
 		}
+
+		msg := t.escapedHTMLMessage(u.ChatID, "Select the alert")
 		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
 
-		msg.Text = "Select the alert"
 		_, err = t.bot.Send(msg)
 		if err != nil {
 			return dialog.Reset, err
@@ -64,6 +62,8 @@ func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
 	}, "You are not subscribed to any alerts yet.").Append(t.alertDetermination())
 }
 
+// Show a select alert dialog (created alerts).
+// Places the Alert into the context at ALERT_SELECTION_CONTEXT_KEY
 func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
 	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
 		return t.repository.GetUserAlerts(u.User.ID)
@@ -90,7 +90,7 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 		}
 
 		if !foundAlert {
-			msg := tgbotapi.NewMessage(u.ChatID, "Could not find the alert you selected")
+			msg := t.escapedHTMLMessage(u.ChatID, "Could not find the alert you selected")
 			_, err := t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
@@ -106,14 +106,12 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 
 		ctx.Set("alert", alert)
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-		msg.Text = fmt.Sprintf("You selected the '%s' alert.", alert.Name)
+		msg := t.escapedHTMLMessage(u.ChatID, "You selected the <b>%s</b> alert.", alert.Name)
 
 		// reset keyboard
 		msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{
 			RemoveKeyboard: true,
 		}
-		msg.ParseMode = tgbotapi.ModeMarkdown
 		_, err = t.bot.Send(msg)
 		if err != nil {
 			return dialog.Reset, err

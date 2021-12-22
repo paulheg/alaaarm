@@ -4,9 +4,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kyokomi/emoji"
-
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -19,12 +16,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 		// ask for the name of the alert
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-		msg.ParseMode = tgbotapi.ModeMarkdown
-		msg.Text = emoji.Sprint(`:bell: Creating a new alert
-		
-		Send me the name of the new alert.`)
-		_, err := t.bot.Send(msg)
+		_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "create_new_alert"))
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -32,14 +24,12 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-
 		name := strings.TrimSpace(u.Text)
 
 		// check if name matches the defined pattern
 		if !namePattern.MatchString(name) {
-			msg.Text = emoji.Sprint(":warning: The alert name has to be at least 5 characters long.\nPlease try again.")
-			_, err := t.bot.Send(msg)
+
+			_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_name_too_short"))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -48,16 +38,11 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		}
 
 		// store data in context
-		ctx.Set("alert", models.Alert{
+		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, models.Alert{
 			Name: name,
 		})
 
-		msg.ParseMode = tgbotapi.ModeMarkdown
-		msg.Text = emoji.Sprintf(`The name of your new notification is *%s*.
-
-Now give it a description.`, name)
-
-		_, err := t.bot.Send(msg)
+		_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_needs_description", name))
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -65,14 +50,12 @@ Now give it a description.`, name)
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-
 		description := strings.TrimSpace(u.Text)
 
 		// check if matches the description pattern
 		if !descriptionPattern.MatchString(description) {
-			msg.Text = emoji.Sprint(":warning: The description has to be at least 10 characters long.\nPlease try again.")
-			_, err := t.bot.Send(msg)
+
+			_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_description_too_short"))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -80,7 +63,7 @@ Now give it a description.`, name)
 		}
 
 		// read data from context
-		newAlert, ok := ctx.Value("alert").(models.Alert)
+		newAlert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
 
 		// fatal error, should not happen
 		if !ok {
@@ -90,16 +73,9 @@ Now give it a description.`, name)
 		newAlert.Description = description
 
 		// store new description in context
-		ctx.Set("alert", newAlert)
+		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, newAlert)
 
-		msg.ParseMode = tgbotapi.ModeMarkdown
-		msg.Text = emoji.Sprintf(`:bell: Creating new alert
-*Name:* %s
-*Description:* %s
-
-Do you want to create the alert?`, newAlert.Name, newAlert.Description)
-
-		_, err := t.bot.Send(msg)
+		_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_finished", newAlert.Name, newAlert.Description))
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -108,9 +84,8 @@ Do you want to create the alert?`, newAlert.Name, newAlert.Description)
 	})).Append(t.newYesNoDialog(
 		// On Yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "")
 
-			contextAlert, ok := ctx.Value("alert").(models.Alert)
+			contextAlert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
@@ -125,13 +100,7 @@ Do you want to create the alert?`, newAlert.Name, newAlert.Description)
 
 			triggerURL := t.webserver.AlertTriggerURL(a, "Hello World")
 
-			msg.ParseMode = tgbotapi.ModeMarkdown
-			msg.Text = emoji.Sprintf(`:check_mark_button: New alert :bell: was created
-
-To trigger the alarm send a GET request to the follwing URL:
-[%s](%s)`, triggerURL, triggerURL)
-
-			_, err = t.bot.Send(msg)
+			_, err = t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_created", triggerURL, triggerURL))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -140,9 +109,8 @@ To trigger the alarm send a GET request to the follwing URL:
 		},
 		// On no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprint(":cross_mark: Alert is discarded.")
-			_, err := t.bot.Send(msg)
+
+			_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_discarded"))
 			if err != nil {
 				return dialog.Reset, err
 			}

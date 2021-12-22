@@ -15,6 +15,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/paulheg/alaaarm/pkg/dialog"
+	"github.com/paulheg/alaaarm/pkg/messages"
 	"github.com/paulheg/alaaarm/pkg/models"
 	"github.com/paulheg/alaaarm/pkg/repository"
 	"github.com/paulheg/alaaarm/pkg/web"
@@ -47,6 +48,7 @@ type Telegram struct {
 	conversation *dialog.Manager
 	log          *logrus.Entry
 	commands     []tgbotapi.BotCommand
+	dictionary   messages.Dictionary
 }
 
 // NewTelegram creates a new instance of a Telegram
@@ -122,9 +124,12 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	for update := range updates {
 		err := t.processUpdate(update)
 		if err != nil {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-			msg.Text = "We are sorry. A fatal error occured. A developer will have a look into this.\n" +
-				"Unfortunately your current action was reset by this. Please try again."
+			msg := t.escapedHTMLMessage(update.Message.Chat.ID, `We are sorry :smiling_face_with_tear:. 
+A fatal error occured while processing your current action.
+A developer will have a look into this.
+
+Unfortunately your current action was reset by this. Please try again.`)
+
 			t.bot.Send(msg)
 
 			t.log.WithError(err).Error("Telegram runtime error")
@@ -191,8 +196,9 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) error {
 		default:
 			err := t.conversation.Next(dialogUpdate, update.Message.Chat.ID)
 			if err == dialog.ErrNoMatch {
-				msg := tgbotapi.NewMessage(dialogUpdate.ChatID, "")
-				msg.Text = "I dont know what to do with this. Please use the provided commands or use /exit if something is not working."
+				msg := tgbotapi.NewMessage(
+					dialogUpdate.ChatID,
+					"I dont know what to do with this. Please use the provided commands or use /exit if something is not working.")
 				_, err = t.bot.Send(msg)
 				if err != nil {
 					return err
