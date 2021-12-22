@@ -1,0 +1,58 @@
+token_changed: |
+  The token of :bell: <b>%s</b> was changed.
+
+  Your new trigger URL is:
+  <a href="%s">%s</a>
+create_new_alert: |
+  :bell: Creating a new alert
+
+  Send me the name of the new alert.
+alert_name_too_short: |
+  :warning: The alert name has to be at least 5 characters long.
+  Please try again.
+alert_description_too_short: |
+  :warning: The description has to be at least 10 characters long.
+  Please try again.
+alert_needs_description: |
+  The name of your new notification is <b>%s</b>.
+
+  Now give it a description.
+alert_finished: |
+  :bell: Creating new alert
+  <b>Name:</b> %s
+  <b>Description:</b> %s
+
+  Do you want to create the alert?
+alert_created: |
+  :check_mark_button: New alert :bell: was created
+
+  To trigger the alarm send a GET request to the follwing URL:
+  <a href="%s">%s</a>
+alert_discarded: |
+  :cross_mark: Alert is discarded.
+alert_delete_are_you_shure: |
+  <b>Do you really want to delete the following alert:</b>
+  <pre>%s</pre>
+
+  All :moai:%v subscribed users to this alert will be lost.
+  HTTP Requests using the token of this alert wont result in a notification.
+
+  :warning: <b>This process cannot be reversed.</b>
+
+  Do you really want to delete the alert?
+alert_deleted: |
+  :check_mark_button: Alert was deleted.
+alert_not_deleted: |
+  :cross_mark: The alert was not deleted.
+alert_info: |
+  :bell: <b>%s</b>
+  <pre>%s</pre>
+
+  <b>Subscribed Users:</b> :moai:%v 
+
+  <b>Trigger URL:</b>
+  <a href="%s">%s</a>
+invitation_link_generated: |
+  Here is your invitation link:
+  
+  %s

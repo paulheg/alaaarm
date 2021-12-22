@@ -1,8 +1,6 @@
 package telegram
 
 import (
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -17,16 +15,13 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
+			subscribers, err := t.repository.GetSubscriberCount(alert)
+			if err != nil {
+				return dialog.Reset, err
+			}
 
-			msg.ParseMode = tgbotapi.ModeMarkdown
-			msg.Text = emoji.Sprintf(`:warning: *Do you really want to delete the :bell: %s alert?*
-No one will receive any notifications from this alert anymore.
-HTTP Requests using the token of this alert wont result in a notification.
-
-:warning: This process cannot be reversed.
-Do you want to delete the alert?`, alert.Name)
-			_, err := t.bot.Send(msg)
+			msg := t.escapedHTMLLookup(u.ChatID, "alert_delete_are_you_shure", alert.Name, subscribers)
+			_, err = t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -36,7 +31,6 @@ Do you want to delete the alert?`, alert.Name)
 		// On Yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 			var err error
-			msg := tgbotapi.NewMessage(u.ChatID, "")
 
 			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
 			if !ok {
@@ -48,7 +42,7 @@ Do you want to delete the alert?`, alert.Name)
 				return dialog.Reset, err
 			}
 
-			msg.Text = emoji.Sprint(":check_mark_button: Alert was deleted.")
+			msg := t.escapedHTMLLookup(u.ChatID, "alert_deleted")
 			_, err = t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
@@ -58,8 +52,7 @@ Do you want to delete the alert?`, alert.Name)
 		},
 		// On No
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprint(":cross_mark: The alert was not deleted.")
+			msg := t.escapedHTMLLookup(u.ChatID, "alert_not_deleted")
 			_, err := t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err

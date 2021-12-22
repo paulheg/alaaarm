@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -16,17 +14,16 @@ import (
 func (t *Telegram) newStartDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
 		invitationKey := u.Update.Message.CommandArguments()
 		invitationKey = strings.TrimSpace(invitationKey)
 
 		if len(invitationKey) == 0 {
 			// normal start command
-			msg.Text = emoji.Sprint(`Welcome to the :bell: Alaaarm bot.
+
+			_, err := t.bot.Send(t.escapedHTMLMessage(u.ChatID, `Welcome to the :bell: Alaaarm bot.
 With this bot you can create and receive alerts.
 
-To create an alert use /create`)
-			_, err := t.bot.Send(msg)
+To create an alert use /create`))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -37,8 +34,8 @@ To create an alert use /create`)
 		// check if arugment passed to start argument is an invitation key
 		invite, err := t.repository.GetInviteByToken(invitationKey)
 		if err == sql.ErrNoRows {
-			msg.Text = emoji.Sprint(":cross_mark: The invitation does no longer exist.")
-			_, err = t.bot.Send(msg)
+			_, err = t.bot.Send(
+				t.escapedHTMLMessage(u.ChatID, ":cross_mark: The invitation does no longer exist."))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -49,8 +46,8 @@ To create an alert use /create`)
 		}
 
 		if invite.Alert.Owner.ID == u.User.ID {
-			msg.Text = emoji.Sprint(":warning: You are the owner of this alert, you already will be notified.")
-			_, err = t.bot.Send(msg)
+			_, err = t.bot.Send(
+				t.escapedHTMLMessage(u.ChatID, ":warning: You are the owner of this alert, you already will be notified."))
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -61,15 +58,14 @@ To create an alert use /create`)
 		// safe to context
 		ctx.Set("invite", invite)
 
-		msg.ParseMode = tgbotapi.ModeMarkdown
-		msg.Text = emoji.Sprintf(`Do you want to join the following :bell: alert?
-*%s*
+		msg := t.escapedHTMLMessage(u.ChatID, `Do you want to join the following :bell: alert?
+<b>%s</b>
 %s
-Of [Owner](%s)`,
+Of <a href="%s">Owner</a>`,
 			invite.Alert.Name,
 			invite.Alert.Description,
-			invite.Alert.Owner.TelegramUserLink(),
-		)
+			invite.Alert.Owner.TelegramUserLink())
+
 		_, err = t.bot.Send(msg)
 		if err != nil {
 			return dialog.Reset, err
@@ -89,10 +85,10 @@ Of [Owner](%s)`,
 				return dialog.Reset, err
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprintf(":check_mark_button: You successfully joined the %s alert. You will be notified on the next alert.",
-				invite.Alert.Name,
-			)
+			msg := t.escapedHTMLMessage(u.ChatID,
+				":check_mark_button: You successfully joined the %s alert. You will be notified on the next alert.",
+				invite.Alert.Name)
+
 			_, err = t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
@@ -102,8 +98,7 @@ Of [Owner](%s)`,
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprint(":cross_mark: You did not join.")
+			msg := t.escapedHTMLMessage(u.ChatID, ":cross_mark: You did not join.")
 
 			_, err := t.bot.Send(msg)
 			if err != nil {

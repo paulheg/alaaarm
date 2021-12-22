@@ -1,8 +1,6 @@
 package telegram
 
 import (
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -24,12 +22,12 @@ func (t *Telegram) newAlertChangeTokenDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(updatedAlert, "Hello World")
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.ParseMode = tgbotapi.ModeMarkdown
-			msg.Text = emoji.Sprintf(`The token of :bell: *%s* was changed.
+			text, err := t.dictionary.Lookup("token_changed")
+			if err != nil {
+				return dialog.Reset, err
+			}
 
-Your new trigger URL is:
-[%s](%s)`,
+			msg := t.escapedHTMLMessage(u.ChatID, text,
 				updatedAlert.Name,
 				triggerURL,
 				triggerURL,
