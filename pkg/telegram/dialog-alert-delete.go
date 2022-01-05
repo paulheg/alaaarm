@@ -20,8 +20,7 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			msg := t.escapedHTMLLookup(u.ChatID, "alert_delete_are_you_shure", alert.Name, subscribers)
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "alert_delete_are_you_shure", alert.Name, subscribers)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -42,8 +41,7 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			msg := t.escapedHTMLLookup(u.ChatID, "alert_deleted")
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "alert_deleted")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -52,8 +50,7 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 		},
 		// On No
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := t.escapedHTMLLookup(u.ChatID, "alert_not_deleted")
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "alert_not_deleted")
 			if err != nil {
 				return dialog.Reset, err
 			}

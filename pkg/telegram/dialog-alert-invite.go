@@ -38,7 +38,7 @@ func (t *Telegram) newAlertInviteDialog() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			text, _ := t.dictionary.Lookup("invitation_link_generated")
+			text, _ := u.Dictionary.Lookup("invitation_link_generated")
 
 			msg := tgbotapi.NewPhoto(u.ChatID, tgbotapi.FileBytes{
 				Name:  "invite_qr.png",

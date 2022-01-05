@@ -22,11 +22,9 @@ import (
 )
 
 var (
-	errUserAlreadyExists   = errors.New("user already exists")
-	errContextDataMissing  = errors.New("context data missing")
-	errDocumentIDMissing   = errors.New("telegram document fileID missing in response")
-	errPhotoIDMissing      = errors.New("telegram photo fileID missing")
-	errUnexpectedUserInput = errors.New("the userinput was not expected and could not be processed")
+	errContextDataMissing = errors.New("context data missing")
+	errDocumentIDMissing  = errors.New("telegram document fileID missing in response")
+	errPhotoIDMissing     = errors.New("telegram photo fileID missing")
 )
 
 // Failable is a function used for dialog.Failable functions
@@ -48,11 +46,11 @@ type Telegram struct {
 	conversation *dialog.Manager
 	log          *logrus.Entry
 	commands     []tgbotapi.BotCommand
-	dictionary   messages.Dictionary
+	library      messages.Library
 }
 
 // NewTelegram creates a new instance of a Telegram
-func NewTelegram(config *Configuration, repository repository.Repository, webserver web.Webserver, logger *logrus.Logger) (*Telegram, error) {
+func NewTelegram(config *Configuration, repository repository.Repository, webserver web.Webserver, logger *logrus.Logger, lib messages.Library) (*Telegram, error) {
 
 	// connect to telegram
 	bot, err := tgbotapi.NewBotAPI(config.APIKey)
@@ -66,6 +64,7 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 		config:     config,
 		webserver:  webserver,
 		log:        logger.WithField("service", "telegram"),
+		library:    lib,
 	}
 
 	tgbotapi.SetLogger(t.log)
@@ -154,18 +153,23 @@ func (t *Telegram) processUpdate(update tgbotapi.Update) error {
 			))
 
 			if err != nil {
-				return fmt.Errorf("Error while writing userdata: %s", err.Error())
+				return fmt.Errorf("error while writing userdata: %s", err.Error())
 			}
 		} else if err != nil {
-			return fmt.Errorf("Error while reading userdata: %s", err.Error())
-
+			return fmt.Errorf("error while reading userdata: %s", err.Error())
 		}
 
 		dialogUpdate := Update{
-			Update: update,
-			User:   user,
-			Text:   update.Message.Text,
-			ChatID: update.Message.Chat.ID,
+			Update:     update,
+			User:       user,
+			Text:       update.Message.Text,
+			ChatID:     update.Message.Chat.ID,
+			Language:   update.Message.From.LanguageCode,
+			Dictionary: t.library.Get(update.Message.From.LanguageCode),
+		}
+
+		if dialogUpdate.Dictionary.Key() != dialogUpdate.Language {
+			t.log.WithField("lang", dialogUpdate.Language).Info("There is no translation for this language")
 		}
 
 		t.log.WithFields(logrus.Fields{

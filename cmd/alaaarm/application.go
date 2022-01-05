@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/paulheg/alaaarm/pkg/messages"
 	"github.com/paulheg/alaaarm/pkg/repository"
 	"github.com/paulheg/alaaarm/pkg/telegram"
 	"github.com/paulheg/alaaarm/pkg/web"
@@ -15,7 +16,7 @@ import (
 
 var (
 	// ErrConfigurationMissing is returned when the configuration was not read
-	ErrConfigurationMissing = errors.New("The configuration needs to be loaded first")
+	ErrConfigurationMissing = errors.New("the configuration needs to be loaded first")
 )
 
 // Application is the base struct
@@ -25,17 +26,21 @@ type Application struct {
 	telegram   *telegram.Telegram
 	web        web.Webserver
 	log        *logrus.Logger
+	library    messages.Library
 }
 
 // Configuration holds the application configurations
 type Configuration struct {
-	Logging    string
-	Web        *web.Configuration
-	Telegram   *telegram.Configuration
-	Repository *repository.Configuration
+	LocalizationBaseDirectory string
+	DefaultLanguage           string
+	Web                       *web.Configuration
+	Telegram                  *telegram.Configuration
+	Repository                *repository.Configuration
 }
 
 var defaultConfig = &Configuration{
+	LocalizationBaseDirectory: "./localizations",
+	DefaultLanguage:           "en",
 	Repository: &repository.Configuration{
 		ConnectionString:   "./database.db",
 		MigrationDirectory: "./migration",
@@ -96,6 +101,12 @@ func (a *Application) CreateConfiguration(path string) error {
 	return nil
 }
 
+// Loads the configuration file from disk, and stores a new version with the old configuration
+// and the default values of possible new fields
+func (a *Application) UpgradeConfiguration(path string) error {
+	return nil
+}
+
 // Run starts the application
 func (a *Application) Run() {
 	var wg sync.WaitGroup
@@ -139,6 +150,11 @@ func (a *Application) Initialize() error {
 		return ErrConfigurationMissing
 	}
 
+	err = a.initializeLibrary()
+	if err != nil {
+		return err
+	}
+
 	err = a.initializeDatabase()
 	if err != nil {
 		return err
@@ -157,6 +173,14 @@ func (a *Application) Initialize() error {
 	a.web.RegisterEndpoint("telegram", a.telegram)
 
 	return nil
+}
+
+func (a *Application) initializeLibrary() error {
+	var err error
+
+	a.library, err = messages.NewLibrary(a.config.LocalizationBaseDirectory, a.config.DefaultLanguage)
+
+	return err
 }
 
 // InitializeDatabase initializes the database
@@ -189,7 +213,7 @@ func (a *Application) initializeWebserver() error {
 func (a *Application) initializeTelegram() error {
 	var err error
 
-	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web, a.log)
+	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web, a.log, a.library)
 
 	return err
 }

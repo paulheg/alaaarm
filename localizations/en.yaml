@@ -56,3 +56,37 @@ invitation_link_generated: |
   Here is your invitation link:
   
   %s
+selected_alert_not_found: |
+  Could not find the alert you selected
+alert_was_selected: |
+  You selected the <b>%s</b> alert.
+select_alert: |
+  Select the alert
+not_subscribed_to_alerts: |
+  You are not subscribed to any alerts yet.
+no_created_alerts: |
+  You have not created an alert.
+  Send /create to do so.
+cant_unsubscribe_from_own_alert: |
+  You cant unsubscribe from your own alert.
+  Use /delete to remove it.
+succesful_unsubscribe: |
+  :check_mark_button: You are succesfully unsubscribed from the %s alert.
+alert_info_template: |
+  Your alerts:
+  {{if .created}}
+  {{range .created}}
+  - :bell:<i>{{.Name}}</i>
+  {{end}}
+  {{else}}
+  You are not subscribed to any alerts yet.
+  {{end}}
+
+  Subscribed Alerts:
+  {{if .subscribed}}
+  {{range .subscribed}}
+  - :bell:<i>{{.Name}}</i>
+  {{end}}
+  {{else}}
+  You have not subscribed to any alerts yet.
+  {{end}}
