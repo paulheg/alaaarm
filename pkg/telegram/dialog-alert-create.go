@@ -16,7 +16,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 		// ask for the name of the alert
-		_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "create_new_alert"))
+		err := t.sendMessage(u, "create_new_alert")
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -29,7 +29,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// check if name matches the defined pattern
 		if !namePattern.MatchString(name) {
 
-			_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_name_too_short"))
+			err := t.sendMessage(u, "alert_name_too_short")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -42,7 +42,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 			Name: name,
 		})
 
-		_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_needs_description", name))
+		err := t.sendMessage(u, "alert_needs_description", name)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -55,7 +55,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// check if matches the description pattern
 		if !descriptionPattern.MatchString(description) {
 
-			_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_description_too_short"))
+			err := t.sendMessage(u, "alert_description_too_short")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -75,7 +75,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// store new description in context
 		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, newAlert)
 
-		_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_finished", newAlert.Name, newAlert.Description))
+		err := t.sendMessage(u, "alert_finished", newAlert.Description)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -100,7 +100,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(a, "Hello World")
 
-			_, err = t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_created", triggerURL, triggerURL))
+			err = t.sendMessage(u, "alert_created", triggerURL, triggerURL)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -110,7 +110,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// On no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			_, err := t.bot.Send(t.escapedHTMLLookup(u.ChatID, "alert_discarded"))
+			err := t.sendMessage(u, "alert_discarded")
 			if err != nil {
 				return dialog.Reset, err
 			}

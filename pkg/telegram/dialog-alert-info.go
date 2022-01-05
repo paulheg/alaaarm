@@ -22,7 +22,7 @@ func (t *Telegram) newAlertInfoDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(alert, "Hello World")
 
-			msg := t.escapedHTMLLookup(u.ChatID, "alert_info",
+			err = t.sendMessage(u, "alert_info",
 				alert.Name,
 				alert.Description,
 				subscribers,
@@ -30,7 +30,6 @@ func (t *Telegram) newAlertInfoDialog() *dialog.Dialog {
 				triggerURL,
 			)
 
-			_, err = t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
 			}

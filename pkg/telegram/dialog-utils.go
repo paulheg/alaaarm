@@ -7,6 +7,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
+	"github.com/paulheg/alaaarm/pkg/messages"
+	"github.com/sirupsen/logrus"
 )
 
 func (t *Telegram) on(s string, caseSensitive bool) *dialog.Dialog {
@@ -42,13 +44,53 @@ func (t *Telegram) command(command, description string) *dialog.Dialog {
 	}))
 }
 
-func (t *Telegram) escapedHTMLLookup(chatID int64, key string, a ...interface{}) tgbotapi.MessageConfig {
-	text, err := t.dictionary.Lookup(key)
+func (t *Telegram) lookupText(u Update, key string) (string, error) {
+
+	text, err := u.Dictionary.Lookup(key)
 	if err != nil {
-		return tgbotapi.MessageConfig{}
+		t.log.WithFields(logrus.Fields{
+			"lang": u.Language,
+			"key":  key,
+		}).Warning("there is no translation for the given key in the selected language, switching to default language")
+
+		text, err = t.library.Default().Lookup(key)
+		if err != nil {
+			t.log.WithFields(logrus.Fields{
+				"lang": u.Language,
+				"key":  key,
+			}).Error("There is no default translation for the given key")
+
+			return "", messages.ErrMessageNotFound
+		}
 	}
 
-	return t.escapedHTMLMessage(chatID, text, a)
+	return text, nil
+}
+
+func (t *Telegram) sendMessageWithReplayMarkup(u Update, key string, replyMarkup interface{}, a ...interface{}) error {
+	text, err := t.lookupText(u, key)
+	if err != nil {
+		return err
+	}
+
+	msg := t.escapedHTMLMessage(u.ChatID, text, a)
+	msg.ReplyMarkup = replyMarkup
+
+	_, err = t.bot.Send(msg)
+
+	return err
+}
+
+func (t *Telegram) sendMessage(u Update, key string, a ...interface{}) error {
+	return t.sendMessageWithReplayMarkup(u, key, nil, a)
+}
+
+func (t *Telegram) sendCloseKeyboardMessage(u Update, key string, a ...interface{}) error {
+	replayMarkup := tgbotapi.ReplyKeyboardRemove{
+		RemoveKeyboard: true,
+	}
+
+	return t.sendMessageWithReplayMarkup(u, key, replayMarkup, a)
 }
 
 func (t *Telegram) escapedHTMLMessage(chatID int64, s string, a ...interface{}) tgbotapi.MessageConfig {

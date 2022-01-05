@@ -10,13 +10,14 @@ import (
 
 const (
 	ALERT_SELECTION_CONTEXT_KEY = "alert"
+	ALERTS_CONTEXT_KEY          = "alerts"
 )
 
 func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
 
-func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Alert, error), onEmptyMessage string) *dialog.Dialog {
+func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Alert, error), onEmptyMessageKey string) *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 		alerts, err := getAlerts(u)
@@ -25,7 +26,7 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 		}
 
 		if len(alerts) == 0 {
-			_, err := t.bot.Send(t.escapedHTMLMessage(u.ChatID, onEmptyMessage))
+			err := t.sendMessage(u, onEmptyMessageKey)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -33,7 +34,7 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 			return dialog.Reset, nil
 		}
 
-		ctx.Set("alerts", alerts)
+		ctx.Set(ALERTS_CONTEXT_KEY, alerts)
 
 		// build keyboard
 		buttons := make([]tgbotapi.KeyboardButton, 0)
@@ -44,10 +45,9 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 			)
 		}
 
-		msg := t.escapedHTMLMessage(u.ChatID, "Select the alert")
-		msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(buttons)
+		replyMarkup := tgbotapi.NewReplyKeyboard(buttons)
 
-		_, err = t.bot.Send(msg)
+		err = t.sendMessageWithReplayMarkup(u, "select_alert", replyMarkup)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -57,23 +57,30 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 }
 
 func (t *Telegram) newSelectSubscribedAlertDialog() *dialog.Dialog {
-	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
-		return t.repository.GetUserSubscribedAlerts(u.User.ID)
-	}, "You are not subscribed to any alerts yet.").Append(t.alertDetermination())
+
+	return t.newAlertSelectionDialog(
+		func(u Update) ([]models.Alert, error) {
+			return t.repository.GetUserSubscribedAlerts(u.User.ID)
+		},
+		"not_subscribed_to_alerts",
+	).Append(t.alertDetermination())
 }
 
 // Show a select alert dialog (created alerts).
 // Places the Alert into the context at ALERT_SELECTION_CONTEXT_KEY
 func (t *Telegram) newSelectAlertDialog() *dialog.Dialog {
-	return t.newAlertSelectionDialog(func(u Update) ([]models.Alert, error) {
-		return t.repository.GetUserAlerts(u.User.ID)
-	}, "You have not created any alerts yet.").Append(t.alertDetermination())
+	return t.newAlertSelectionDialog(
+		func(u Update) ([]models.Alert, error) {
+			return t.repository.GetUserAlerts(u.User.ID)
+		},
+		"no_created_alerts",
+	).Append(t.alertDetermination())
 }
 
 func (t *Telegram) alertDetermination() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		alerts, ok := ctx.Value("alerts").([]models.Alert)
+		alerts, ok := ctx.Value(ALERTS_CONTEXT_KEY).([]models.Alert)
 		if !ok {
 			return dialog.Reset, errContextDataMissing
 		}
@@ -90,8 +97,7 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 		}
 
 		if !foundAlert {
-			msg := t.escapedHTMLMessage(u.ChatID, "Could not find the alert you selected")
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "selected_alert_not_found")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -104,15 +110,9 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 			return dialog.Reset, err
 		}
 
-		ctx.Set("alert", alert)
+		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, alert)
 
-		msg := t.escapedHTMLMessage(u.ChatID, "You selected the <b>%s</b> alert.", alert.Name)
-
-		// reset keyboard
-		msg.ReplyMarkup = tgbotapi.ReplyKeyboardRemove{
-			RemoveKeyboard: true,
-		}
-		_, err = t.bot.Send(msg)
+		err = t.sendCloseKeyboardMessage(u, "alert_was_selected", alert.Name)
 		if err != nil {
 			return dialog.Reset, err
 		}

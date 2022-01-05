@@ -22,7 +22,7 @@ func (t *Telegram) newAlertChangeTokenDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(updatedAlert, "Hello World")
 
-			text, err := t.dictionary.Lookup("token_changed")
+			text, err := u.Dictionary.Lookup("token_changed")
 			if err != nil {
 				return dialog.Reset, err
 			}
