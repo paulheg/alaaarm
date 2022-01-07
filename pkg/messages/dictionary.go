@@ -25,21 +25,22 @@ type dictionary struct {
 }
 
 func NewDictionary(filePath, dictKey string) (Dictionary, error) {
-	var dict dictionary
+	var mapping map[string]string
 
 	buffer, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	err = yaml.Unmarshal(buffer, &dict)
+	err = yaml.Unmarshal(buffer, &mapping)
 	if err != nil {
 		return nil, err
 	}
 
-	dict.key = dictKey
-
-	return &dict, nil
+	return &dictionary{
+		dict: mapping,
+		key:  dictKey,
+	}, nil
 }
 
 func (d *dictionary) Lookup(key string) (string, error) {
