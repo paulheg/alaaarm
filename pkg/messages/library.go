@@ -45,7 +45,7 @@ func NewLibrary(baseDirectory, defaultLanguage string) (Library, error) {
 		}
 
 		fileName := f.Name()
-		key := fileName[len(fileName)-len(path.Ext(fileName)):]
+		key := fileName[:len(fileName)-len(path.Ext(fileName))]
 
 		dict, err := NewDictionary(path.Join(baseDirectory, fileName), key)
 		if err != nil {
