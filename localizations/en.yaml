@@ -111,7 +111,7 @@ alerts_heading: |
   Your alerts:
 subscribed_alerts_heading: |
   Subscribed Alerts:
-unkown_input: |
+unknown_input: |
   I dont know what to do with this.
   Please use the provided commands or use /exit if something is not working.
 exit_message: |

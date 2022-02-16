@@ -30,6 +30,20 @@ token_changed: |
 
   Deine neue URL lautet:
   <a href="%s">%s</a>
+  create_new_alert: |
+  :bell: Erstelle einen neuen Alarm.
+
+  Schicke mir den Namen des neuen Alarms.
+alert_name_too_short: |
+  :warning: Der Name Muss mindestens 5 Zeichen lang sein.
+  Versuch es nocheinmal.
+alert_description_too_short: |
+  :warning: Die Beschreibung muss mindestens 10 Zeichen lang sein.
+  Versuch es nocheinmal.
+alert_needs_description: |
+  Der name deines Alarms ist <b>%s</b>.
+
+  Jetzt gebe ihm eine Beschreibung.
 alert_finished: |
   :bell: Erstellen eines neuen Alarms
   <b>Name:</b> %s
@@ -97,17 +111,8 @@ alerts_heading: |
   Deine Alarme:
 subscribed_alerts_heading: |
   Abbonierte Alarme:
-create_new_alert: |
-  :bell: Erstelle einen neuen Alarm.
-
-  Schicke mir den Namen des neuen Alarms.
-alert_name_too_short: |
-  :warning: Der Name Muss mindestens 5 Zeichen lang sein.
-  Versuch es nocheinmal.
-alert_description_too_short: |
-  :warning: Die Beschreibung muss mindestens 10 Zeichen lang sein.
-  Versuch es nocheinmal.
-alert_needs_description: |
-  Der name deines Alarms ist <b>%s</b>.
-
-  Jetzt gebe ihm eine Beschreibung.
+unknown_input: |
+  Ich weiß nicht was ich damit machen soll.
+  Bitte benutze die verfügbaren Kommandos oder benutze /exit wenn etwas nicht funktioniert.
+exit_message: |
+  Du bist wieder am Anfang. Schicke mir ein Kommando um weiter zu machen.
