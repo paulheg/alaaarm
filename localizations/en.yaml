@@ -1,3 +1,30 @@
+welcome_message: |
+  Welcome to the :bell: Alaaarm bot.
+  With this bot you can create and receive alerts.
+
+  To create an alert use /create
+invitation_does_not_exist: |
+  :cross_mark: The invitation does no longer exist.
+inivite_to_own_alert: |
+  :warning: You are the owner of this alert, you already will be notified.
+join_alert: |
+  Do you want to join the following :bell: alert?
+  <b>%s</b>
+  %s
+  Of <a href="%s">Owner</a>
+succesful_join: |
+  :check_mark_button: You successfully joined the %s alert.
+  You will be notified on the next alert.
+didnt_join: |
+  :cross_mark: You did not join.
+no_invite_existing: |
+  There was no invite to delete for the %s alert.
+delete_invite_question: |
+  Do you want to delete the invite for the %s alert?
+invite_deleted: |
+  :check_mark_button: The invite was successfuly deleted.
+invite_not_deleted: |
+  :cross_mark: The invite was not deleted.
 token_changed: |
   The token of :bell: <b>%s</b> was changed.
 
@@ -72,21 +99,20 @@ cant_unsubscribe_from_own_alert: |
   Use /delete to remove it.
 succesful_unsubscribe: |
   :check_mark_button: You are succesfully unsubscribed from the %s alert.
-alert_info_template: |
+yes_no_question: |
+  Yes / No ?
+answer_with_yes_no: |
+  Please answer with %s or %s
+answer_yes: |
+  :check_mark: You answered Yes.
+answer_no: |
+  :cross_mark: You answered No.
+alerts_heading: |
   Your alerts:
-  {{if .created}}
-  {{range .created}}
-  - :bell:<i>{{.Name}}</i>
-  {{end}}
-  {{else}}
-  You are not subscribed to any alerts yet.
-  {{end}}
-
+subscribed_alerts_heading: |
   Subscribed Alerts:
-  {{if .subscribed}}
-  {{range .subscribed}}
-  - :bell:<i>{{.Name}}</i>
-  {{end}}
-  {{else}}
-  You have not subscribed to any alerts yet.
-  {{end}}
+unkown_input: |
+  I dont know what to do with this.
+  Please use the provided commands or use /exit if something is not working.
+exit_message: |
+  You are back at the start. Send me a command to continue.

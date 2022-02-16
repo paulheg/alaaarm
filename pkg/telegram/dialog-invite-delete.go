@@ -12,15 +12,15 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			alert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
 
 			invite, err := t.repository.GetInviteByAlertID(alert.ID)
 			if err == sql.ErrNoRows {
-				_, err := t.bot.Send(
-					t.escapedHTMLMessage(u.ChatID, "There was no invite to delete for the %s alert.", alert.Name))
+
+				err := t.sendMessage(u, "no_invite_existing", alert.Name)
 				if err != nil {
 					return dialog.Reset, err
 				}
@@ -30,10 +30,9 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			ctx.Set("invite", invite)
+			ctx.Set(INVITE_CONTEXT_KEY, invite)
 
-			_, err = t.bot.Send(
-				t.escapedHTMLMessage(u.ChatID, "Do you want to delete the invite for the %s alert?", alert.Name))
+			err = t.sendMessage(u, "delete_invite_question", alert.Name)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -43,7 +42,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 		// on yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			invite, ok := ctx.Value("invite").(models.Invite)
+			invite, ok := ctx.Value(INVITE_CONTEXT_KEY).(models.Invite)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
@@ -53,8 +52,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			_, err = t.bot.Send(
-				t.escapedHTMLMessage(u.ChatID, ":check_mark_button: The invite was successfuly deleted."))
+			err = t.sendMessage(u, "invite_deleted")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -63,8 +61,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			_, err := t.bot.Send(
-				t.escapedHTMLMessage(u.ChatID, ":cross_mark: The invite was not deleted."))
+			err := t.sendMessage(u, "invite_not_deleted")
 			if err != nil {
 				return dialog.Reset, err
 			}

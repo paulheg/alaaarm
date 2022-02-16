@@ -20,10 +20,7 @@ func (t *Telegram) newStartDialog() *dialog.Dialog {
 		if len(invitationKey) == 0 {
 			// normal start command
 
-			_, err := t.bot.Send(t.escapedHTMLMessage(u.ChatID, `Welcome to the :bell: Alaaarm bot.
-With this bot you can create and receive alerts.
-
-To create an alert use /create`))
+			err := t.sendMessage(u, "welcome_message")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -34,8 +31,7 @@ To create an alert use /create`))
 		// check if arugment passed to start argument is an invitation key
 		invite, err := t.repository.GetInviteByToken(invitationKey)
 		if err == sql.ErrNoRows {
-			_, err = t.bot.Send(
-				t.escapedHTMLMessage(u.ChatID, ":cross_mark: The invitation does no longer exist."))
+			err := t.sendMessage(u, "invitation_does_not_exist")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -46,8 +42,7 @@ To create an alert use /create`))
 		}
 
 		if invite.Alert.Owner.ID == u.User.ID {
-			_, err = t.bot.Send(
-				t.escapedHTMLMessage(u.ChatID, ":warning: You are the owner of this alert, you already will be notified."))
+			t.sendMessage(u, "inivite_to_own_alert")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -56,17 +51,13 @@ To create an alert use /create`))
 		}
 
 		// safe to context
-		ctx.Set("invite", invite)
+		ctx.Set(INVITE_CONTEXT_KEY, invite)
 
-		msg := t.escapedHTMLMessage(u.ChatID, `Do you want to join the following :bell: alert?
-<b>%s</b>
-%s
-Of <a href="%s">Owner</a>`,
+		err = t.sendMessage(u, "join_alert",
 			invite.Alert.Name,
 			invite.Alert.Description,
 			invite.Alert.Owner.TelegramUserLink())
 
-		_, err = t.bot.Send(msg)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -75,7 +66,7 @@ Of <a href="%s">Owner</a>`,
 	})).Append(t.newYesNoDialog(
 		// on yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			invite, ok := ctx.Value("invite").(models.Invite)
+			invite, ok := ctx.Value(INVITE_CONTEXT_KEY).(models.Invite)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
@@ -85,11 +76,7 @@ Of <a href="%s">Owner</a>`,
 				return dialog.Reset, err
 			}
 
-			msg := t.escapedHTMLMessage(u.ChatID,
-				":check_mark_button: You successfully joined the %s alert. You will be notified on the next alert.",
-				invite.Alert.Name)
-
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "succesful_join", invite.Alert.Name)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -98,9 +85,7 @@ Of <a href="%s">Owner</a>`,
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := t.escapedHTMLMessage(u.ChatID, ":cross_mark: You did not join.")
-
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "didnt_join")
 			if err != nil {
 				return dialog.Reset, err
 			}

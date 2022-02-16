@@ -9,7 +9,7 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			alert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 
 			if !ok {
 				return dialog.Reset, errContextDataMissing
@@ -31,7 +31,7 @@ func (t *Telegram) newDeleteDialog() *dialog.Dialog {
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 			var err error
 
-			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			alert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}

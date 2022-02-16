@@ -67,13 +67,31 @@ func (t *Telegram) lookupText(u Update, key string) (string, error) {
 	return text, nil
 }
 
-func (t *Telegram) sendMessageWithReplayMarkup(u Update, key string, replyMarkup interface{}, a ...interface{}) error {
+func (t *Telegram) emojify(s string, a ...interface{}) string {
+	return fmt.Sprintf(emoji.Sprint(s), a...)
+}
+
+func (t *Telegram) escapedMessage(mode string, chatID int64, s string, a ...interface{}) tgbotapi.MessageConfig {
+	escapedArguments := make([]interface{}, len(a))
+
+	for i, unescapedArgument := range a {
+		escapedArguments[i] = tgbotapi.EscapeText(mode, fmt.Sprint(unescapedArgument))
+	}
+
+	text := t.emojify(s, a...)
+
+	message := tgbotapi.NewMessage(chatID, text)
+	message.ParseMode = mode
+	return message
+}
+
+func (t *Telegram) sendMessageWithReplyMarkup(u Update, key string, replyMarkup interface{}, a ...interface{}) error {
 	text, err := t.lookupText(u, key)
 	if err != nil {
 		return err
 	}
 
-	msg := t.escapedHTMLMessage(u.ChatID, text, a)
+	msg := t.escapedMessage(tgbotapi.ModeHTML, u.ChatID, text, a...)
 	msg.ReplyMarkup = replyMarkup
 
 	_, err = t.bot.Send(msg)
@@ -81,8 +99,12 @@ func (t *Telegram) sendMessageWithReplayMarkup(u Update, key string, replyMarkup
 	return err
 }
 
+func (t *Telegram) escapedHTMLMessage(chatID int64, s string, a ...interface{}) tgbotapi.MessageConfig {
+	return t.escapedMessage(tgbotapi.ModeHTML, chatID, s, a...)
+}
+
 func (t *Telegram) sendMessage(u Update, key string, a ...interface{}) error {
-	return t.sendMessageWithReplayMarkup(u, key, nil, a)
+	return t.sendMessageWithReplyMarkup(u, key, nil, a...)
 }
 
 func (t *Telegram) sendCloseKeyboardMessage(u Update, key string, a ...interface{}) error {
@@ -90,37 +112,5 @@ func (t *Telegram) sendCloseKeyboardMessage(u Update, key string, a ...interface
 		RemoveKeyboard: true,
 	}
 
-	return t.sendMessageWithReplayMarkup(u, key, replayMarkup, a)
-}
-
-func (t *Telegram) escapedHTMLMessage(chatID int64, s string, a ...interface{}) tgbotapi.MessageConfig {
-	const mode = tgbotapi.ModeHTML
-
-	escapedArguments := make([]interface{}, len(a))
-
-	for i, unescapedArgument := range a {
-		escapedArguments[i] = tgbotapi.EscapeText(mode, fmt.Sprint(unescapedArgument))
-	}
-
-	text := emoji.Sprintf(s, escapedArguments...)
-
-	message := tgbotapi.NewMessage(chatID, text)
-	message.ParseMode = mode
-	return message
-}
-
-func (t *Telegram) escapedMarkdownMessage(chatID int64, s string, a ...interface{}) tgbotapi.MessageConfig {
-	const mode = tgbotapi.ModeMarkdown
-
-	escapedArguments := make([]interface{}, len(a))
-
-	for i, unescapedArgument := range a {
-		escapedArguments[i] = tgbotapi.EscapeText(mode, fmt.Sprint(unescapedArgument))
-	}
-
-	text := emoji.Sprintf(s, escapedArguments...)
-
-	message := tgbotapi.NewMessage(chatID, text)
-	message.ParseMode = mode
-	return message
+	return t.sendMessageWithReplyMarkup(u, key, replayMarkup, a...)
 }

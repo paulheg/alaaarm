@@ -8,11 +8,6 @@ import (
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
-const (
-	ALERT_SELECTION_CONTEXT_KEY = "alert"
-	ALERTS_CONTEXT_KEY          = "alerts"
-)
-
 func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
@@ -47,7 +42,7 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 
 		replyMarkup := tgbotapi.NewReplyKeyboard(buttons)
 
-		err = t.sendMessageWithReplayMarkup(u, "select_alert", replyMarkup)
+		err = t.sendMessageWithReplyMarkup(u, "select_alert", replyMarkup)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -110,7 +105,7 @@ func (t *Telegram) alertDetermination() *dialog.Dialog {
 			return dialog.Reset, err
 		}
 
-		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, alert)
+		ctx.Set(ALERT_CONTEXT_KEY, alert)
 
 		err = t.sendCloseKeyboardMessage(u, "alert_was_selected", alert.Name)
 		if err != nil {
