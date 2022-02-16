@@ -81,7 +81,7 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	root.Branch(
 		t.command("start", "Start talking to the bot").Append(t.newStartDialog()),
 		t.command("create", "Create new Alert").Append(t.newCreateAlertDialog()),
-		t.command("delete", "Delete a previously created invite").Append(t.newDeleteDialog()),
+		t.command("delete", "Delete a previously created alert").Append(t.newDeleteDialog()),
 		t.command("info", "Get info about your created or subscribed alerts").Append(t.newInfoDialog()),
 		t.command("alert_info", "Get info about an alert").Append(t.newAlertInfoDialog()),
 		t.command("unsubscribe", "Unsubscribe from an alert you were invited to").Append(t.newAlertUnsubscribeDialog()),

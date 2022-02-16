@@ -86,7 +86,7 @@ invitation_link_generated: |
 selected_alert_not_found: |
   Ich konnte den von dir ausgewählten Alarm nicht finden.
 alert_was_selected: |
-  You selected the <b>%s</b> alert.
+  Du hast den <b>%s</b> Alarm ausgewählt.
 select_alert: |
   Wähle einen Alarm aus:
 not_subscribed_to_alerts: |
