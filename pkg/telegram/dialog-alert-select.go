@@ -12,7 +12,37 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 	return fmt.Sprintf("%d %s", alert.ID, alert.Name)
 }
 
+func makeAlertReplyKeyboard(alerts []models.Alert, buttonsPerRow int) tgbotapi.ReplyKeyboardMarkup {
+	buttons := make([][]tgbotapi.KeyboardButton, 0)
+	var rowButtons []tgbotapi.KeyboardButton
+
+	for i, alert := range alerts {
+
+		if i%buttonsPerRow == 0 {
+			if i > 0 {
+				buttons = append(buttons, rowButtons)
+			}
+
+			rowButtons = make([]tgbotapi.KeyboardButton, 0)
+		}
+
+		rowButtons = append(rowButtons,
+			tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)),
+		)
+	}
+
+	// add the remaining buttons to a last row
+	if len(alerts)%buttonsPerRow != 0 {
+		buttons = append(buttons, rowButtons)
+	}
+
+	return tgbotapi.NewReplyKeyboard(buttons...)
+}
+
 func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Alert, error), onEmptyMessageKey string) *dialog.Dialog {
+
+	const buttonsPerRow = 2
+
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
 		alerts, err := getAlerts(u)
@@ -31,18 +61,10 @@ func (t *Telegram) newAlertSelectionDialog(getAlerts func(u Update) ([]models.Al
 
 		ctx.Set(ALERTS_CONTEXT_KEY, alerts)
 
-		// build keyboard
-		buttons := make([]tgbotapi.KeyboardButton, 0)
+		// build keyboardMarkup
+		keyboardMarkup := makeAlertReplyKeyboard(alerts, buttonsPerRow)
 
-		for _, alert := range alerts {
-			buttons = append(buttons,
-				tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)),
-			)
-		}
-
-		replyMarkup := tgbotapi.NewReplyKeyboard(buttons)
-
-		err = t.sendMessageWithReplyMarkup(u, "select_alert", replyMarkup)
+		err = t.sendMessageWithReplyMarkup(u, "select_alert", keyboardMarkup)
 		if err != nil {
 			return dialog.Reset, err
 		}
