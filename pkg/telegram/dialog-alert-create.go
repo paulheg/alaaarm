@@ -38,7 +38,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		}
 
 		// store data in context
-		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, models.Alert{
+		ctx.Set(ALERT_CONTEXT_KEY, models.Alert{
 			Name: name,
 		})
 
@@ -63,7 +63,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		}
 
 		// read data from context
-		newAlert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+		newAlert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 
 		// fatal error, should not happen
 		if !ok {
@@ -73,9 +73,9 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		newAlert.Description = description
 
 		// store new description in context
-		ctx.Set(ALERT_SELECTION_CONTEXT_KEY, newAlert)
+		ctx.Set(ALERT_CONTEXT_KEY, newAlert)
 
-		err := t.sendMessage(u, "alert_finished", newAlert.Description)
+		err := t.sendMessage(u, "alert_finished", newAlert.Name, newAlert.Description)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -85,7 +85,7 @@ func (t *Telegram) newCreateAlertDialog() *dialog.Dialog {
 		// On Yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			contextAlert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			contextAlert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}

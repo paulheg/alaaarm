@@ -10,7 +10,7 @@ func (t *Telegram) newAlertChangeTokenDialog() *dialog.Dialog {
 	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			alert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
@@ -22,18 +22,11 @@ func (t *Telegram) newAlertChangeTokenDialog() *dialog.Dialog {
 
 			triggerURL := t.webserver.AlertTriggerURL(updatedAlert, "Hello World")
 
-			text, err := u.Dictionary.Lookup("token_changed")
-			if err != nil {
-				return dialog.Reset, err
-			}
-
-			msg := t.escapedHTMLMessage(u.ChatID, text,
-				updatedAlert.Name,
+			err = t.sendMessage(u, "token_changed", updatedAlert.Name,
 				triggerURL,
 				triggerURL,
 			)
 
-			_, err = t.bot.Send(msg)
 			if err != nil {
 				return dialog.Reset, err
 			}
