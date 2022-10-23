@@ -14,27 +14,30 @@ func userFriendlyAlertIdentifier(alert models.Alert) string {
 
 func makeAlertReplyKeyboard(alerts []models.Alert, buttonsPerRow int) tgbotapi.ReplyKeyboardMarkup {
 	buttons := make([][]tgbotapi.KeyboardButton, 0)
-	var rowButtons []tgbotapi.KeyboardButton
+	var row []tgbotapi.KeyboardButton
 
 	for i, alert := range alerts {
 
+		// if buttonsPerRow is reached
 		if i%buttonsPerRow == 0 {
+			// in the first iteration i = 0
+			// there are no buttons in the row, therefore we dont need to add them
 			if i > 0 {
-				buttons = append(buttons, rowButtons)
+				buttons = append(buttons, row)
 			}
 
-			rowButtons = make([]tgbotapi.KeyboardButton, 0)
+			// create a new row
+			row = make([]tgbotapi.KeyboardButton, 0)
 		}
 
-		rowButtons = append(rowButtons,
+		// add a new button to the row
+		row = append(row,
 			tgbotapi.NewKeyboardButton(userFriendlyAlertIdentifier(alert)),
 		)
 	}
 
 	// add the remaining buttons to a last row
-	if len(alerts)%buttonsPerRow != 0 {
-		buttons = append(buttons, rowButtons)
-	}
+	buttons = append(buttons, row)
 
 	return tgbotapi.NewReplyKeyboard(buttons...)
 }
