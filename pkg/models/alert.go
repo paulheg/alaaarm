@@ -19,6 +19,7 @@ type Alert struct {
 	OwnerID     uint   `db:"owner_id"`
 	Owner       User
 	Token       string `db:"token"`
+	NotifyOwner bool   `db:"notify_owner"`
 }
 
 // NewAlert creates a new Alert instance
@@ -26,6 +27,7 @@ func NewAlert(name, description string, owner User) *Alert {
 	alert := &Alert{
 		Name:        name,
 		Description: description,
+		NotifyOwner: true,
 	}
 	alert.CreatedAt.Scan(time.Now())
 	alert.SetOwner(owner)

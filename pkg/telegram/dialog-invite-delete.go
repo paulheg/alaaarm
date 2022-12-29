@@ -2,10 +2,7 @@ package telegram
 
 import (
 	"database/sql"
-	"fmt"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -15,17 +12,15 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 	return t.newSelectAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			alert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-
 			invite, err := t.repository.GetInviteByAlertID(alert.ID)
 			if err == sql.ErrNoRows {
-				msg.Text = fmt.Sprintf("There was no invite to delete for the %s alert.", alert.Name)
-				_, err := t.bot.Send(msg)
+
+				err := t.sendMessage(u, "no_invite_existing", alert.Name)
 				if err != nil {
 					return dialog.Reset, err
 				}
@@ -35,14 +30,9 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			ctx.Set("invite", invite)
+			ctx.Set(INVITE_CONTEXT_KEY, invite)
 
-			msg.Text = fmt.Sprintf(
-				"Do you want to delete the invite for the %s alert?",
-				alert.Name,
-			)
-
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "delete_invite_question", alert.Name)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -52,7 +42,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 		// on yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			invite, ok := ctx.Value("invite").(models.Invite)
+			invite, ok := ctx.Value(INVITE_CONTEXT_KEY).(models.Invite)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
@@ -62,9 +52,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprint(":check_mark_button: The invite was successfuly deleted.")
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "invite_deleted")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -73,9 +61,7 @@ func (t *Telegram) newInviteDeleteDiaolg() *dialog.Dialog {
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprint(":cross_mark: The invite was not deleted.")
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "invite_not_deleted")
 			if err != nil {
 				return dialog.Reset, err
 			}

@@ -1,0 +1,132 @@
+welcome_message: |
+  Willkommen beim :bell: Alaaarm Bot.
+  Mit diesem Bot kannst du Alarme erstellen und dich alarmieren (benachrichtigen) lassen.
+
+  Mit /create kannst du einen Alarm erstellen.
+invitation_does_not_exist: |
+  :cross_mark: Die Einladung scheint nicht mehr zu existieren.
+inivite_to_own_alert: |
+  :warning: Du bist der Ersteller dieses Alarms und erhältst bereits Benachrichtungen.
+join_alert: |
+  Möchtest du den folgenden Alarm :bell: abbonieren?
+  <b>%s</b>
+  %s
+  Von <a href="%s">Ersteller</a>
+succesful_join: |
+  :check_mark_button: Du hast erfolgreich den <b>%s</b> Alarm abboniert.
+  Du wirst nun beim nächsten Alarm benachrichtigt.
+didnt_join: |
+  :cross_mark: Du hast nicht abboniert.
+no_invite_existing: |
+  Es gibt derzeit keine Einladungen für den  <b>%s</b> Alarm.
+delete_invite_question: |
+  Möchtest du die Einladung für den <b>%s</b> Alarm löschen?
+invite_deleted: |
+  :check_mark_button: Die Einladung wurde erfolgreich gelöscht.
+invite_not_deleted: |
+  :cross_mark: Die Einladung wurde nicht gelöscht.
+token_changed: |
+  Der Token des :bell: <b>%s</b> Alarms wurde geändert.
+
+  Deine neue URL lautet:
+  <a href="%s">%s</a>
+  create_new_alert: |
+  :bell: Erstelle einen neuen Alarm.
+
+  Schicke mir den Namen des neuen Alarms.
+alert_name_too_short: |
+  :warning: Der Name Muss mindestens 5 Zeichen lang sein.
+  Versuch es nocheinmal.
+alert_description_too_short: |
+  :warning: Die Beschreibung muss mindestens 10 Zeichen lang sein.
+  Versuch es nocheinmal.
+alert_needs_description: |
+  Der name deines Alarms ist <b>%s</b>.
+
+  Jetzt gebe ihm eine Beschreibung.
+alert_finished: |
+  :bell: Erstellen eines neuen Alarms
+  <b>Name:</b> %s
+  <b>Beschreibung:</b> %s
+
+  Möchtest du diesen Alarm erstellen?
+alert_created: |
+  :check_mark_button: Neuer Alarm :bell: wurde erstellt
+
+  Um den Alarm auszulösen sende einen GET Request an folgende URL:
+  <a href="%s">%s</a>
+alert_discarded: |
+  :cross_mark: Der Alarm wurde verworfen.
+alert_delete_are_you_shure: |
+  <b>Möchtest du wirklich den folgenden Alarm löschen:</b>
+  <pre>%s</pre>
+
+  Alle :moai:%v Abbonenten des Alarms werden entfernt.
+  Alle HTTP Requests an die Trigger URL werden keine Benachrichtigung mehr auslösen. 
+
+  :warning: <b>Der Vorgang kann nicht rückgängig gemacht werden!</b>
+
+  Bist du sicher den Alarm löschen zu wollen?
+alert_deleted: |
+  :check_mark_button: Der Alarm wurde gelöscht.
+alert_not_deleted: |
+  :cross_mark: Der Alarm wurde nicht gelöscht.
+alert_info: |
+  :bell: <b>%s</b>
+  <pre>%s</pre>
+
+  <b>Abbonierte Benutzer:</b> :moai:%v 
+
+  <b>Trigger URL:</b>
+  <a href="%s">%s</a>
+invitation_link_generated: |
+  Hier ist dein Einladungslink:
+  
+  %s
+selected_alert_not_found: |
+  Ich konnte den von dir ausgewählten Alarm nicht finden.
+alert_was_selected: |
+  Du hast den <b>%s</b> Alarm ausgewählt.
+select_alert: |
+  Wähle einen Alarm aus:
+not_subscribed_to_alerts: |
+  Du hast noch keinen Alarm abboniert.
+no_created_alerts: |
+  Du hast noch keinen Alarm erstellt.
+  Schreibe /create um einen zu erstellen.
+cant_unsubscribe_from_own_alert: |
+  Du kannst nicht deinen eigenen Alarm deabbonieren.
+  Benutze /delete um ihn zu entfernen.
+succesful_unsubscribe: |
+  :check_mark_button: Du hast erfolgreich den %s Alarm deabboniert.
+yes_no_question: |
+  Ja / Nein ?
+answer_with_yes_no: |
+  Bitte antworte mit %s oder %s
+answer_yes: |
+  :check_mark: Du hast ja geantwortet.
+answer_no: |
+  :cross_mark: Du hast nein geantwortet.
+alerts_heading: |
+  Deine Alarme:
+subscribed_alerts_heading: |
+  Abbonierte Alarme:
+unknown_input: |
+  Ich weiß nicht was ich damit machen soll.
+  Bitte benutze die verfügbaren Kommandos oder benutze /exit wenn etwas nicht funktioniert.
+exit_message: |
+  Du bist wieder am Anfang. Schicke mir ein Kommando um weiter zu machen.
+answer: |
+  Du hast folgendes geantwortet: %s 
+group_private_question: |
+  Soll es für eine Gruppe oder den privaten Chat verwendet werden? 
+now_muted: |
+  Du wirst hierzu im privaten Chat keine Benachrichtigungen mehr bekommen.
+now_unmuted: |
+  Du wirst hierzu wieder Benachrichtigungen im privaten Chat bekommen.
+error_message: |
+  Es tut uns leid :smiling_face_with_tear:. 
+  Ein schwerer Fehler ist aufgetreten beim Verarbeiten der aktuellen Anfrage.
+  Ein Entwickler wird der Sache auf der Grund gehen.
+
+  Deine aktuelle Anfrage wurde deshalb zurückgesetzt. Bitte versuche es erneut 

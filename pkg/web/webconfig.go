@@ -2,6 +2,6 @@ package web
 
 // Configuration of  the webservice
 type Configuration struct {
-	Domain string
-	Port   string
+	Domain string `env:"DOMAIN"`
+	Port   string `env:"PORT"`
 }

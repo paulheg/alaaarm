@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"strings"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -16,17 +14,13 @@ import (
 func (t *Telegram) newStartDialog() *dialog.Dialog {
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
 		invitationKey := u.Update.Message.CommandArguments()
 		invitationKey = strings.TrimSpace(invitationKey)
 
 		if len(invitationKey) == 0 {
 			// normal start command
-			msg.Text = emoji.Sprint(`Welcome to the :bell: Alaaarm bot.
-With this bot you can create and receive alerts.
 
-To create an alert use /create`)
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "welcome_message")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -37,8 +31,7 @@ To create an alert use /create`)
 		// check if arugment passed to start argument is an invitation key
 		invite, err := t.repository.GetInviteByToken(invitationKey)
 		if err == sql.ErrNoRows {
-			msg.Text = emoji.Sprint(":cross_mark: The invitation does no longer exist.")
-			_, err = t.bot.Send(msg)
+			err := t.sendMessage(u, "invitation_does_not_exist")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -49,8 +42,7 @@ To create an alert use /create`)
 		}
 
 		if invite.Alert.Owner.ID == u.User.ID {
-			msg.Text = emoji.Sprint(":warning: You are the owner of this alert, you already will be notified.")
-			_, err = t.bot.Send(msg)
+			t.sendMessage(u, "inivite_to_own_alert")
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -59,18 +51,13 @@ To create an alert use /create`)
 		}
 
 		// safe to context
-		ctx.Set("invite", invite)
+		ctx.Set(INVITE_CONTEXT_KEY, invite)
 
-		msg.ParseMode = tgbotapi.ModeMarkdown
-		msg.Text = emoji.Sprintf(`Do you want to join the following :bell: alert?
-*%s*
-%s
-Of [Owner](%s)`,
+		err = t.sendMessage(u, "join_alert",
 			invite.Alert.Name,
 			invite.Alert.Description,
-			invite.Alert.Owner.TelegramUserLink(),
-		)
-		_, err = t.bot.Send(msg)
+			invite.Alert.Owner.TelegramUserLink())
+
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -79,7 +66,7 @@ Of [Owner](%s)`,
 	})).Append(t.newYesNoDialog(
 		// on yes
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			invite, ok := ctx.Value("invite").(models.Invite)
+			invite, ok := ctx.Value(INVITE_CONTEXT_KEY).(models.Invite)
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
@@ -89,11 +76,7 @@ Of [Owner](%s)`,
 				return dialog.Reset, err
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprintf(":check_mark_button: You successfully joined the %s alert. You will be notified on the next alert.",
-				invite.Alert.Name,
-			)
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "succesful_join", invite.Alert.Name)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -102,10 +85,7 @@ Of [Owner](%s)`,
 		},
 		// on no
 		func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprint(":cross_mark: You did not join.")
-
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "didnt_join")
 			if err != nil {
 				return dialog.Reset, err
 			}
