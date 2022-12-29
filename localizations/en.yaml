@@ -1,0 +1,132 @@
+welcome_message: |
+  Welcome to the :bell: Alaaarm bot.
+  With this bot you can create and receive alerts.
+
+  To create an alert use /create
+invitation_does_not_exist: |
+  :cross_mark: The invitation does not (longer) exist.
+inivite_to_own_alert: |
+  :warning: You are the owner of this alert, you already will be notified.
+join_alert: |
+  Do you want to join the following :bell: alert?
+  <b>%s</b>
+  %s
+  Of <a href="%s">Owner</a>
+succesful_join: |
+  :check_mark_button: You successfully joined the %s alert.
+  You will be notified on the next alert.
+didnt_join: |
+  :cross_mark: You did not join.
+no_invite_existing: |
+  There was no invite to delete for the %s alert.
+delete_invite_question: |
+  Do you want to delete the invite for the %s alert?
+invite_deleted: |
+  :check_mark_button: The invite was successfuly deleted.
+invite_not_deleted: |
+  :cross_mark: The invite was not deleted.
+token_changed: |
+  The token of :bell: <b>%s</b> was changed.
+
+  Your new trigger URL is:
+  <a href="%s">%s</a>
+create_new_alert: |
+  :bell: Creating a new alert
+
+  Send me the name of the new alert.
+alert_name_too_short: |
+  :warning: The alert name has to be at least 5 characters long.
+  Please try again.
+alert_description_too_short: |
+  :warning: The description has to be at least 10 characters long.
+  Please try again.
+alert_needs_description: |
+  The name of your new notification is <b>%s</b>.
+
+  Now give it a description.
+alert_finished: |
+  :bell: Creating new alert
+  <b>Name:</b> %s
+  <b>Description:</b> %s
+
+  Do you want to create the alert?
+alert_created: |
+  :check_mark_button: New alert :bell: was created
+
+  To trigger the alarm send a GET request to the follwing URL:
+  <a href="%s">%s</a>
+alert_discarded: |
+  :cross_mark: Alert is discarded.
+alert_delete_are_you_shure: |
+  <b>Do you really want to delete the following alert:</b>
+  <pre>%s</pre>
+
+  All :moai:%v subscribed users to this alert will be lost.
+  HTTP Requests using the token of this alert wont result in a notification.
+
+  :warning: <b>This process cannot be reversed.</b>
+
+  Do you really want to delete the alert?
+alert_deleted: |
+  :check_mark_button: Alert was deleted.
+alert_not_deleted: |
+  :cross_mark: The alert was not deleted.
+alert_info: |
+  :bell: <b>%s</b>
+  <pre>%s</pre>
+
+  <b>Subscribed Users:</b> :moai:%v 
+
+  <b>Trigger URL:</b>
+  <a href="%s">%s</a>
+invitation_link_generated: |
+  Here is your invitation link:
+  
+  %s
+selected_alert_not_found: |
+  Could not find the alert you selected
+alert_was_selected: |
+  You selected the <b>%s</b> alert.
+select_alert: |
+  Select the alert
+not_subscribed_to_alerts: |
+  You are not subscribed to any alerts yet.
+no_created_alerts: |
+  You have not created an alert.
+  Send /create to do so.
+cant_unsubscribe_from_own_alert: |
+  You cant unsubscribe from your own alert.
+  Use /delete to remove it.
+succesful_unsubscribe: |
+  :check_mark_button: You are succesfully unsubscribed from the %s alert.
+yes_no_question: |
+  Yes / No ?
+answer_with: |
+  Please answer with %s or %s
+answer_yes: |
+  :check_mark: You answered Yes.
+answer_no: |
+  :cross_mark: You answered No.
+alerts_heading: |
+  Your alerts:
+subscribed_alerts_heading: |
+  Subscribed Alerts:
+unknown_input: |
+  I dont know what to do with this.
+  Please use the provided commands or use /exit if something is not working.
+exit_message: |
+  You are back at the start. Send me a command to continue.
+answer: |
+  You answered: %s
+group_private_question: |
+  Use in a group or private chat?
+now_muted: |
+  You wont get notified in the bot chat anymore.
+now_unmuted: |
+  You will now get notified in the bot chat again.
+error_message: |
+  We are sorry :smiling_face_with_tear:. 
+  A fatal error occured while processing your current action.
+  A developer will have a look into this.
+
+  Unfortunately your current action was reset by this. Please try again.

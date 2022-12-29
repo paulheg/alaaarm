@@ -1,27 +1,21 @@
 package telegram
 
 import (
-	"strings"
-
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 )
 
-func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog {
+func (t *Telegram) newSelectDialog(optionA, optionB, questionKey string, onA, onB Failable) *dialog.Dialog {
 
-	yesNoReplyKeyboard := tgbotapi.NewReplyKeyboard(
+	replyKeyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Yes"),
-			tgbotapi.NewKeyboardButton("No"),
+			tgbotapi.NewKeyboardButton(optionA),
+			tgbotapi.NewKeyboardButton(optionB),
 		),
 	)
 
 	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-
-		msg := tgbotapi.NewMessage(u.ChatID, "Yes / No ?")
-		msg.ReplyMarkup = yesNoReplyKeyboard
-		_, err := t.bot.Send(msg)
+		err := t.sendMessageWithReplyMarkup(u, questionKey, replyKeyboard)
 		if err != nil {
 			return dialog.Reset, err
 		}
@@ -29,30 +23,23 @@ func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog 
 		return dialog.Success, nil
 	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-		msg := tgbotapi.NewMessage(u.ChatID, "")
-
-		switch strings.ToLower(u.Text) {
-		case "yes":
-			msg.Text = emoji.Sprint(":check_mark: You answered Yes.")
-			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
-			_, err := t.bot.Send(msg)
+		switch u.Text {
+		case optionA:
+			err := t.sendCloseKeyboardMessage(u, "answer", optionA)
 			if err != nil {
 				return dialog.Reset, err
 			}
 
-			return onYes(u, ctx)
-		case "no":
-			msg.Text = emoji.Sprint(":cross_mark: You answered No.")
-			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(false)
-			_, err := t.bot.Send(msg)
+			return onA(u, ctx)
+		case optionB:
+			err := t.sendCloseKeyboardMessage(u, "answer", optionB)
 			if err != nil {
 				return dialog.Reset, err
 			}
 
-			return onNo(u, ctx)
+			return onB(u, ctx)
 		default:
-			msg.Text = "Please answer with Yes/No"
-			_, err := t.bot.Send(msg)
+			err := t.sendMessage(u, "answer_with", optionA, optionB)
 			if err != nil {
 				return dialog.Reset, err
 			}
@@ -61,4 +48,18 @@ func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog 
 		}
 
 	}))
+
+}
+
+func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog {
+
+	const (
+		// :check_mark:
+		yesString string = "\u2714\ufe0f"
+
+		// :cross_mark:
+		noString string = "\u274c"
+	)
+
+	return t.newSelectDialog(yesString, noString, "yes_no_question", onYes, onNo)
 }

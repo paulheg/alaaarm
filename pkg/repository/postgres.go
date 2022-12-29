@@ -18,7 +18,7 @@ type postgres struct {
 	log    *logrus.Logger
 }
 
-//New Repository
+// New Repository
 func NewPostgres(log *logrus.Logger) Repository {
 	return &postgres{
 		log: log,
@@ -383,7 +383,7 @@ AND u.deleted_at IS NULL`, telegramID)
 
 func (p *postgres) DeleteUser(userID uint) error {
 
-	result, err := p.db.Exec(`UPDATE "USER"
+	result, err := p.db.Exec(`UPDATE "USER" AS u
 SET deleted_at = $1
 WHERE u.id = $2
 AND u.deleted_at IS NULL`, time.Now(), userID)
@@ -451,4 +451,29 @@ VALUES($1, $2);`, newVersion, time.Now())
 	}
 
 	return nil
+}
+
+func (p *postgres) SetMuteAlert(alert models.Alert, mute bool) error {
+
+	alert.UpdatedAt.Scan(time.Now())
+
+	result, err := p.db.Exec(`UPDATE "ALERT" AS a
+SET notify_owner = $1, updated_at = $2
+WHERE a.id = $3
+AND a.deleted_at IS NULL;`, mute, alert.UpdatedAt, alert.ID)
+
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows < 1 {
+		return sql.ErrNoRows
+	}
+
+	return err
 }

@@ -23,20 +23,23 @@ func main() {
 
 	defaultFlags := []cli.Flag{
 		&cli.PathFlag{
-			Name:  CONFIG_FILE_FLAG_NAME,
-			Usage: "Load configuration from `FILE`.json",
-			Value: "./config.json",
+			Name:    CONFIG_FILE_FLAG_NAME,
+			Usage:   "Load configuration from `FILE`.json",
+			Value:   "./config.json",
+			EnvVars: []string{"CONFIG_PATH"},
 		},
 		&cli.StringFlag{
-			Name:  LOG_LEVEL_FLAG_NAME,
-			Usage: "Set the level of detail the logs contain (debug, info, warn, error)",
-			Value: "info",
+			Name:    LOG_LEVEL_FLAG_NAME,
+			Usage:   "Set the level of detail the logs contain (debug, info, warn, error)",
+			Value:   "info",
+			EnvVars: []string{"LOG_LEVEL"},
 		},
 	}
 
 	app := &cli.App{
-		Name:        "Alaaarm Bot",
-		Description: "Server that is in controll of the Telegram bot and the web-interface triggering alerts",
+		Name:                 "Alaaarm Bot",
+		Description:          "Server that is in control of the Telegram bot and the web-interface triggering alerts",
+		EnableBashCompletion: true,
 		Commands: []*cli.Command{
 			{
 				Name:        "run",
@@ -101,16 +104,12 @@ func setLogLevel(log *logrus.Logger, logLevel string) {
 	switch logLevel {
 	case "info":
 		log.SetLevel(logrus.InfoLevel)
-		break
 	case "warn":
 		log.SetLevel(logrus.WarnLevel)
-		break
 	case "error":
 		log.SetLevel(logrus.ErrorLevel)
-		break
 	case "debug":
 		log.SetLevel(logrus.DebugLevel)
-		break
 	default:
 		log.SetLevel(logrus.InfoLevel)
 	}

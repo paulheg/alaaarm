@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 	"sync"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/sirupsen/logrus"
 
+	"github.com/paulheg/alaaarm/pkg/messages"
 	"github.com/paulheg/alaaarm/pkg/repository"
 	"github.com/paulheg/alaaarm/pkg/telegram"
 	"github.com/paulheg/alaaarm/pkg/web"
@@ -15,7 +17,7 @@ import (
 
 var (
 	// ErrConfigurationMissing is returned when the configuration was not read
-	ErrConfigurationMissing = errors.New("The configuration needs to be loaded first")
+	ErrConfigurationMissing = errors.New("the configuration needs to be loaded first")
 )
 
 // Application is the base struct
@@ -25,17 +27,21 @@ type Application struct {
 	telegram   *telegram.Telegram
 	web        web.Webserver
 	log        *logrus.Logger
+	library    messages.Library
 }
 
 // Configuration holds the application configurations
 type Configuration struct {
-	Logging    string
-	Web        *web.Configuration
-	Telegram   *telegram.Configuration
-	Repository *repository.Configuration
+	LocalizationBaseDirectory string `env:"LOCALE_BASE_DIR"`
+	DefaultLanguage           string `env:"DEFAULT_LANG"`
+	Web                       *web.Configuration
+	Telegram                  *telegram.Configuration
+	Repository                *repository.Configuration
 }
 
 var defaultConfig = &Configuration{
+	LocalizationBaseDirectory: "./localizations",
+	DefaultLanguage:           "en",
 	Repository: &repository.Configuration{
 		ConnectionString:   "./database.db",
 		MigrationDirectory: "./migration",
@@ -60,16 +66,20 @@ func newApplication(log *logrus.Logger) *Application {
 
 // LoadConfiguration loads the configuration file
 func (a *Application) LoadConfiguration(path string) error {
-
 	a.log.Info("Reading configuration")
 
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
+
 	config := defaultConfig
-	err = json.Unmarshal(file, &config)
-	if err != nil {
+
+	if err = json.Unmarshal(file, &config); err != nil {
+		return err
+	}
+
+	if err = env.Parse(config); err != nil {
 		return err
 	}
 
@@ -86,12 +96,29 @@ func (a *Application) CreateConfiguration(path string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, fileContent, 0755)
+	err = os.WriteFile(path, fileContent, 0755)
 	if err != nil {
 		return err
 	}
 
 	a.log.Infof("The default configuration file was written to %s", path)
+
+	return nil
+}
+
+// Loads the configuration file from disk, and stores a new version with the old configuration
+// and the default values of possible new fields
+func (a *Application) UpgradeConfiguration(path string) error {
+
+	err := a.LoadConfiguration(path)
+	if err != nil {
+		return err
+	}
+
+	// err = viper.WriteConfigAs(path)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -139,6 +166,11 @@ func (a *Application) Initialize() error {
 		return ErrConfigurationMissing
 	}
 
+	err = a.initializeLibrary()
+	if err != nil {
+		return err
+	}
+
 	err = a.initializeDatabase()
 	if err != nil {
 		return err
@@ -157,6 +189,14 @@ func (a *Application) Initialize() error {
 	a.web.RegisterEndpoint("telegram", a.telegram)
 
 	return nil
+}
+
+func (a *Application) initializeLibrary() error {
+	var err error
+
+	a.library, err = messages.NewLibrary(a.config.LocalizationBaseDirectory, a.config.DefaultLanguage)
+
+	return err
 }
 
 // InitializeDatabase initializes the database
@@ -189,7 +229,7 @@ func (a *Application) initializeWebserver() error {
 func (a *Application) initializeTelegram() error {
 	var err error
 
-	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web, a.log)
+	a.telegram, err = telegram.NewTelegram(a.config.Telegram, a.repository, a.web, a.log, a.library)
 
 	return err
 }

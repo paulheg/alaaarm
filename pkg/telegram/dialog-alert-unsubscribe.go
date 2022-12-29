@@ -1,8 +1,6 @@
 package telegram
 
 import (
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kyokomi/emoji"
 	"github.com/paulheg/alaaarm/pkg/dialog"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
@@ -12,15 +10,14 @@ func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 	return t.newSelectSubscribedAlertDialog().
 		Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
 
-			alert, ok := ctx.Value(ALERT_SELECTION_CONTEXT_KEY).(models.Alert)
+			alert, ok := ctx.Value(ALERT_CONTEXT_KEY).(models.Alert)
 
 			if !ok {
 				return dialog.Reset, errContextDataMissing
 			}
 
 			if u.User.ID == alert.OwnerID {
-				msg := tgbotapi.NewMessage(u.ChatID, "You cant unsubscribe from your own alert. Use /delete to remove it.")
-				_, err := t.bot.Send(msg)
+				err := t.sendMessage(u, "cant_unsubscribe_from_own_alert")
 				if err != nil {
 					return dialog.Reset, err
 				}
@@ -34,9 +31,7 @@ func (t *Telegram) newAlertUnsubscribeDialog() *dialog.Dialog {
 				return dialog.Reset, err
 			}
 
-			msg := tgbotapi.NewMessage(u.ChatID, "")
-			msg.Text = emoji.Sprintf(":check_mark_button: You are succesfully unsubscribed from the %s alert.", alert.Name)
-			_, err = t.bot.Send(msg)
+			err = t.sendMessage(u, "succesful_unsubscribe", alert.Name)
 			if err != nil {
 				return dialog.Reset, err
 			}
