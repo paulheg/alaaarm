@@ -5,6 +5,52 @@ import (
 	"github.com/paulheg/alaaarm/pkg/dialog"
 )
 
+func (t *Telegram) newSelectDialog(optionA, optionB, questionKey string, onA, onB Failable) *dialog.Dialog {
+
+	replyKeyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(optionA),
+			tgbotapi.NewKeyboardButton(optionB),
+		),
+	)
+
+	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
+		err := t.sendMessageWithReplyMarkup(u, questionKey, replyKeyboard)
+		if err != nil {
+			return dialog.Reset, err
+		}
+
+		return dialog.Success, nil
+	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
+
+		switch u.Text {
+		case optionA:
+			err := t.sendCloseKeyboardMessage(u, "answer", optionA)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
+			return onA(u, ctx)
+		case optionB:
+			err := t.sendCloseKeyboardMessage(u, "answer", optionB)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
+			return onB(u, ctx)
+		default:
+			err := t.sendMessage(u, "answer_with", optionA, optionB)
+			if err != nil {
+				return dialog.Reset, err
+			}
+
+			return dialog.Retry, nil
+		}
+
+	}))
+
+}
+
 func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog {
 
 	const (
@@ -15,45 +61,5 @@ func (t *Telegram) newYesNoDialog(onYes Failable, onNo Failable) *dialog.Dialog 
 		noString string = "\u274c"
 	)
 
-	yesNoReplyKeyboard := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(yesString),
-			tgbotapi.NewKeyboardButton(noString),
-		),
-	)
-
-	return dialog.Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-		err := t.sendMessageWithReplyMarkup(u, "yes_no_question", yesNoReplyKeyboard)
-		if err != nil {
-			return dialog.Reset, err
-		}
-
-		return dialog.Success, nil
-	})).Chain(failable(func(u Update, ctx dialog.ValueStore) (dialog.Status, error) {
-
-		switch u.Text {
-		case yesString:
-			err := t.sendCloseKeyboardMessage(u, "answer_yes")
-			if err != nil {
-				return dialog.Reset, err
-			}
-
-			return onYes(u, ctx)
-		case noString:
-			err := t.sendCloseKeyboardMessage(u, "answer_no")
-			if err != nil {
-				return dialog.Reset, err
-			}
-
-			return onNo(u, ctx)
-		default:
-			err := t.sendMessage(u, "answer_with_yes_no", yesString, noString)
-			if err != nil {
-				return dialog.Reset, err
-			}
-
-			return dialog.Retry, nil
-		}
-
-	}))
+	return t.newSelectDialog(yesString, noString, "yes_no_question", onYes, onNo)
 }

@@ -53,6 +53,7 @@ type AlertRepository interface {
 
 	AddUserToAlert(alert models.Alert, user models.User) error
 	RemoveUserFromAlert(alert models.Alert, user models.User) error
+	SetMuteAlert(alert models.Alert, mute bool) error
 }
 
 // InviteRepository defines invite related data operations

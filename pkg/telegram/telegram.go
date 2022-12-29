@@ -50,7 +50,7 @@ type Telegram struct {
 	webserver    web.Webserver
 	conversation *dialog.Manager
 	log          *logrus.Entry
-	commands     []tgbotapi.BotCommand
+	commands     map[Scope][]tgbotapi.BotCommand
 	library      messages.Library
 }
 
@@ -70,6 +70,7 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 		webserver:  webserver,
 		log:        logger.WithField("service", "telegram"),
 		library:    lib,
+		commands:   make(map[Scope][]tgbotapi.BotCommand),
 	}
 
 	tgbotapi.SetLogger(t.log)
@@ -78,20 +79,48 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 
 	// create new dialog
 	root := dialog.NewRoot()
+
 	root.Branch(
-		t.command("start", "Start talking to the bot").Append(t.newStartDialog()),
-		t.command("create", "Create new Alert").Append(t.newCreateAlertDialog()),
-		t.command("delete", "Delete a previously created alert").Append(t.newDeleteDialog()),
-		t.command("info", "Get info about your created or subscribed alerts").Append(t.newInfoDialog()),
-		t.command("alert_info", "Get info about an alert").Append(t.newAlertInfoDialog()),
-		t.command("unsubscribe", "Unsubscribe from an alert you were invited to").Append(t.newAlertUnsubscribeDialog()),
-		t.command("change_alert_token", "Change the alert URL token").Append(t.newAlertChangeTokenDialog()),
-		t.command("invite", "Create an invitation link for your alert").Append(t.newAlertInviteDialog()),
-		t.command("delete_invite", "Delete a previously created invite").Append(t.newInviteDeleteDiaolg()),
+		t.command("start", "Start talking to the bot", PRIVATE_SCOPE.Add(ADMIN_SCOPE)).
+			Append(t.newStartDialog()),
+
+		t.command("create", "Create new Alert", PRIVATE_SCOPE).
+			Append(t.newCreateAlertDialog()),
+
+		t.command("delete", "Delete a previously created alert", PRIVATE_SCOPE).
+			Append(t.newDeleteDialog()),
+
+		t.command("info", "Get info about your created or subscribed alerts", PRIVATE_SCOPE).
+			Append(t.newInfoDialog()),
+
+		t.command("alert_info", "Get info about an alert", PRIVATE_SCOPE).
+			Append(t.newAlertInfoDialog()),
+
+		t.command("change_alert_token", "Change the alert URL token", PRIVATE_SCOPE).
+			Append(t.newAlertChangeTokenDialog()),
+
+		t.command("invite", "Create an invitation link for your alert", PRIVATE_SCOPE).
+			Append(t.newAlertInviteDialog()),
+
+		t.command("delete_invite", "Delete a previously created invite", PRIVATE_SCOPE).
+			Append(t.newInviteDeleteDiaolg()),
+
+		t.command("mute", "Dont get notified from your own alerts", PRIVATE_SCOPE).
+			Append(t.newMuteAlertDialog()),
+
+		t.command(
+			"unsubscribe",
+			"Unsubscribe from an alert you were invited to",
+			PRIVATE_SCOPE.Add(ADMIN_SCOPE)).
+			Append(t.newAlertUnsubscribeDialog()),
 	)
 
 	t.log.Debug("Configure bot commands per request")
-	_, err = t.bot.Request(tgbotapi.NewSetMyCommands(t.commands...))
+
+	// add exit command
+	t.addCommandDefinition("exit", "return from any action", EVERYWHERE)
+	err = t.registerCommands()
+
 	if err != nil {
 		t.log.WithError(err).Debug("Bot commands could not be configured per request")
 		return t, err
@@ -100,6 +129,50 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	t.conversation = dialog.NewManager(root)
 
 	return t, nil
+}
+
+func (t *Telegram) registerCommands() error {
+
+	registerScope := func(scope tgbotapi.BotCommandScope, commands []tgbotapi.BotCommand) error {
+
+		// scip registration for scope that contains no commands
+		if len(commands) == 0 {
+			return nil
+		}
+
+		_, err := t.bot.Request(tgbotapi.NewSetMyCommandsWithScope(
+			scope,
+			commands...,
+		))
+
+		return err
+	}
+
+	err := registerScope(
+		tgbotapi.NewBotCommandScopeAllPrivateChats(),
+		t.commands[PRIVATE_SCOPE],
+	)
+	if err != nil {
+		return err
+	}
+
+	err = registerScope(
+		tgbotapi.NewBotCommandScopeAllGroupChats(),
+		t.commands[GROUP_SCOPE],
+	)
+	if err != nil {
+		return err
+	}
+
+	err = registerScope(
+		tgbotapi.NewBotCommandScopeAllChatAdministrators(),
+		t.commands[ADMIN_SCOPE],
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Quit shuts down the telegram bot
@@ -126,26 +199,23 @@ func (t *Telegram) Run(wg *sync.WaitGroup) error {
 	updates.Clear()
 
 	for telegramUpdate := range updates {
-		err := t.processUpdate(telegramUpdate)
+		update, err := t.makeUpdate(telegramUpdate)
 		if err != nil {
 			t.log.WithError(err).Error("Telegram runtime error")
-			t.sendErrorMessage(telegramUpdate.Message.Chat.ID)
+			t.sendMessage(update, "error_message")
+			break
+		}
+
+		err = t.processUpdate(update)
+		if err != nil {
+			t.log.WithError(err).Error("Telegram runtime error")
+			t.sendMessage(update, "error_message")
 			break
 		}
 	}
 
 	t.log.Info("Telegram bot shutdown")
 	return nil
-}
-
-func (t *Telegram) sendErrorMessage(chatID int64) {
-	msg := t.escapedHTMLMessage(chatID, `We are sorry :smiling_face_with_tear:. 
-A fatal error occured while processing your current action.
-A developer will have a look into this.
-
-Unfortunately your current action was reset by this. Please try again.`)
-
-	t.bot.Send(msg)
 }
 
 func (t *Telegram) makeUpdate(update tgbotapi.Update) (Update, error) {
@@ -185,21 +255,18 @@ func (t *Telegram) makeUpdate(update tgbotapi.Update) (Update, error) {
 	return dialogUpdate, nil
 }
 
-func (t *Telegram) processUpdate(telegramUpdate tgbotapi.Update) error {
-
-	update, err := t.makeUpdate(telegramUpdate)
-	if err != nil {
-		return err
-	}
+func (t *Telegram) processUpdate(update Update) error {
 
 	t.log.WithFields(logrus.Fields{
 		"userID":  update.User.ID,
 		"message": update.Text,
 	}).Debug("New Message")
 
-	// commands
-	switch update.Text {
-	case "/exit":
+	if len(update.Text) == 0 {
+		return nil
+	}
+
+	if update.Update.Message.Command() == "exit" {
 		// reset the dialog tree
 		t.conversation.Reset(update.ChatID)
 
@@ -207,11 +274,7 @@ func (t *Telegram) processUpdate(telegramUpdate tgbotapi.Update) error {
 		if err != nil {
 			return err
 		}
-
-		break
-	case "":
-		break
-	default:
+	} else {
 		err := t.conversation.Next(update, update.ChatID)
 		if err == dialog.ErrNoMatch {
 

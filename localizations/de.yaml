@@ -116,3 +116,17 @@ unknown_input: |
   Bitte benutze die verfügbaren Kommandos oder benutze /exit wenn etwas nicht funktioniert.
 exit_message: |
   Du bist wieder am Anfang. Schicke mir ein Kommando um weiter zu machen.
+answer: |
+  Du hast folgendes geantwortet: %s 
+group_private_question: |
+  Soll es für eine Gruppe oder den privaten Chat verwendet werden? 
+now_muted: |
+  Du wirst hierzu im privaten Chat keine Benachrichtigungen mehr bekommen.
+now_unmuted: |
+  Du wirst hierzu wieder Benachrichtigungen im privaten Chat bekommen.
+error_message: |
+  Es tut uns leid :smiling_face_with_tear:. 
+  Ein schwerer Fehler ist aufgetreten beim Verarbeiten der aktuellen Anfrage.
+  Ein Entwickler wird der Sache auf der Grund gehen.
+
+  Deine aktuelle Anfrage wurde deshalb zurückgesetzt. Bitte versuche es erneut 

@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 	"sync"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/sirupsen/logrus"
 
 	"github.com/paulheg/alaaarm/pkg/messages"
@@ -31,8 +32,8 @@ type Application struct {
 
 // Configuration holds the application configurations
 type Configuration struct {
-	LocalizationBaseDirectory string
-	DefaultLanguage           string
+	LocalizationBaseDirectory string `env:"LOCALE_BASE_DIR"`
+	DefaultLanguage           string `env:"DEFAULT_LANG"`
 	Web                       *web.Configuration
 	Telegram                  *telegram.Configuration
 	Repository                *repository.Configuration
@@ -65,16 +66,20 @@ func newApplication(log *logrus.Logger) *Application {
 
 // LoadConfiguration loads the configuration file
 func (a *Application) LoadConfiguration(path string) error {
-
 	a.log.Info("Reading configuration")
 
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
+
 	config := defaultConfig
-	err = json.Unmarshal(file, &config)
-	if err != nil {
+
+	if err = json.Unmarshal(file, &config); err != nil {
+		return err
+	}
+
+	if err = env.Parse(config); err != nil {
 		return err
 	}
 
@@ -91,7 +96,7 @@ func (a *Application) CreateConfiguration(path string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, fileContent, 0755)
+	err = os.WriteFile(path, fileContent, 0755)
 	if err != nil {
 		return err
 	}
@@ -104,6 +109,17 @@ func (a *Application) CreateConfiguration(path string) error {
 // Loads the configuration file from disk, and stores a new version with the old configuration
 // and the default values of possible new fields
 func (a *Application) UpgradeConfiguration(path string) error {
+
+	err := a.LoadConfiguration(path)
+	if err != nil {
+		return err
+	}
+
+	// err = viper.WriteConfigAs(path)
+	// if err != nil {
+	// 	return err
+	// }
+
 	return nil
 }
 
