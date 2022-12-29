@@ -2,3 +2,6 @@ ALTER TABLE "ALERT"
 ADD COLUMN notify_owner BOOLEAN;
 
 ALTER TABLE "ALERT" ALTER COLUMN notify_owner SET DEFAULT true;
+
+UPDATE "ALERT"
+SET notify_owner = true;
