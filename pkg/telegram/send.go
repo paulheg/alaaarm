@@ -114,7 +114,9 @@ func (t *Telegram) sendMessageToAll(alert models.Alert, message string) error {
 		return err
 	}
 
-	receivers = append(receivers, alert.Owner)
+	if alert.NotifyOwner {
+		receivers = append(receivers, alert.Owner)
+	}
 
 	for _, receiver := range receivers {
 		msg := tgbotapi.NewMessage(receiver.TelegramID, message)
@@ -123,6 +125,12 @@ func (t *Telegram) sendMessageToAll(alert models.Alert, message string) error {
 		if err != nil {
 			if terr, ok := err.(*tgbotapi.Error); ok {
 				switch terr.Code {
+				case 400:
+					t.log.WithField("userID", receiver.ID).Warn("Group was migrated to supergroup and does no longer exist. Removing user/group...")
+					err = t.repository.DeleteUser(receiver.ID)
+					if err != nil {
+						return err
+					}
 				case 403:
 					t.log.WithField("userID", receiver.ID).Warn("Not allowed to send message. Deleting user...")
 					err = t.repository.DeleteUser(receiver.ID)

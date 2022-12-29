@@ -4,7 +4,7 @@ welcome_message: |
 
   To create an alert use /create
 invitation_does_not_exist: |
-  :cross_mark: The invitation does no longer exist.
+  :cross_mark: The invitation does not (longer) exist.
 inivite_to_own_alert: |
   :warning: You are the owner of this alert, you already will be notified.
 join_alert: |
@@ -101,7 +101,7 @@ succesful_unsubscribe: |
   :check_mark_button: You are succesfully unsubscribed from the %s alert.
 yes_no_question: |
   Yes / No ?
-answer_with_yes_no: |
+answer_with: |
   Please answer with %s or %s
 answer_yes: |
   :check_mark: You answered Yes.
@@ -116,3 +116,17 @@ unknown_input: |
   Please use the provided commands or use /exit if something is not working.
 exit_message: |
   You are back at the start. Send me a command to continue.
+answer: |
+  You answered: %s
+group_private_question: |
+  Use in a group or private chat?
+now_muted: |
+  You wont get notified in the bot chat anymore.
+now_unmuted: |
+  You will now get notified in the bot chat again.
+error_message: |
+  We are sorry :smiling_face_with_tear:. 
+  A fatal error occured while processing your current action.
+  A developer will have a look into this.
+
+  Unfortunately your current action was reset by this. Please try again.

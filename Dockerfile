@@ -1,5 +1,5 @@
 # use go image
-FROM golang:1.17.1-alpine AS builder
+FROM golang:latest AS builder
 
 # copy source files to GO HOME
 COPY . /go/src/github.com/paulheg/alaaarm
@@ -14,7 +14,13 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o server /go/src/github.com/paulheg/alaaa
 FROM alpine:latest
 WORKDIR /
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/migration/ /migration
+COPY --from=builder /go/src/github.com/paulheg/alaaarm/localizations/ /localizations
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
 
-ENTRYPOINT [ "./server", "run", "-config=./config/config.json" ]
+RUN mkdir config
+RUN ./server config create -config=./config/config.json
+
+ENV PORT=3000
 EXPOSE 3000
+
+ENTRYPOINT [ "./server", "run", "-config=./config/config.json" ]
