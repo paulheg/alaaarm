@@ -4,7 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"strings"
 
+	"github.com/avct/uasurfer"
 	"github.com/sirupsen/logrus"
 
 	"net/http"
@@ -12,12 +15,13 @@ import (
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html"
 	"github.com/paulheg/alaaarm/pkg/endpoints"
 	"github.com/paulheg/alaaarm/pkg/models"
 )
 
 var (
-	errEndpointNotFound = errors.New("The endpoint was not found")
+	errEndpointNotFound = errors.New("the endpoint was not found")
 )
 
 // Webserver interface
@@ -40,7 +44,13 @@ type FiberWebserver struct {
 // NewWebserver creates a new Webserver
 func NewWebserver(config *Configuration, log *logrus.Logger) Webserver {
 
+	engine := html.New(config.ViewDirectory, ".html")
+
+	// for testing purposes
+	// engine.Reload(true)
+
 	webApp := fiber.New(fiber.Config{
+		Views:                 engine,
 		DisableStartupMessage: true,
 		CaseSensitive:         true,
 	})
@@ -68,54 +78,46 @@ func (w *FiberWebserver) InitializeWebserver() error {
 
 	alert := v1.Group("/alert/:token")
 
-	alert.Get("/trigger", func(c *fiber.Ctx) error {
+	triggerHandler := w.newTriggerHandler()
+	alert.Get("/trigger", triggerHandler)
+	alert.Post("/trigger", triggerHandler)
+
+	return nil
+}
+
+func (w *FiberWebserver) newTriggerHandler() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token := c.Params("token")
+		message := c.Query("m")
+
+		agentString := string(c.Request().Header.UserAgent())
+
+		webLogger := w.log.WithFields(logrus.Fields{
+			"alert_token": token,
+			"message":     message,
+			"ip":          c.IP(),
+			"user_agent":  agentString,
+		})
+
+		// dont trigger when sent from the telegram link preview
+		if strings.Contains(agentString, "TelegramBot") {
+			const dropMessage = "Dropping this request, as it was likely triggered by accident from Telegram link preview"
+			webLogger.Debug(dropMessage)
+			return c.Status(http.StatusBadRequest).SendString(dropMessage)
+		}
+
+		webLogger.Debug("Triggering message over web interface")
+
 		var err error
+		var file *multipart.FileHeader
+		file = nil
 
-		token := c.Params("token")
-		message := c.Query("m")
-
-		webLogger := w.log.WithFields(logrus.Fields{
-			"alert_token": token,
-			"message":     message,
-			"ip":          c.IP(),
-			"user_agent":  string(c.Request().Header.UserAgent()),
-		})
-
-		webLogger.Debug("Triggering message over web interface")
-
-		if e, ok := w.endpoints["telegram"]; ok {
-			err = e.NotifyAll(token, message, nil)
-		} else {
-			err = errEndpointNotFound
-		}
-
-		if err == sql.ErrNoRows {
-			return c.SendStatus(http.StatusNotFound)
-		} else if err != nil {
-			webLogger.Error(err.Error())
-			return c.SendStatus(http.StatusInternalServerError)
-		}
-
-		return c.SendStatus(http.StatusOK)
-	})
-
-	alert.Post("/trigger", func(c *fiber.Ctx) error {
-		token := c.Params("token")
-		message := c.Query("m")
-
-		webLogger := w.log.WithFields(logrus.Fields{
-			"alert_token": token,
-			"message":     message,
-			"ip":          c.IP(),
-			"user_agent":  c.Request().Header.UserAgent(),
-		})
-
-		webLogger.Debug("Triggering message over web interface")
-
-		file, err := c.FormFile("file")
-		if err != nil {
-			webLogger.Error(err)
-			return c.SendStatus(http.StatusInternalServerError)
+		if c.Method() == http.MethodPost {
+			file, err = c.FormFile("file")
+			if err != nil {
+				webLogger.Error(err)
+				return c.SendStatus(http.StatusInternalServerError)
+			}
 		}
 
 		if e, ok := w.endpoints["telegram"]; ok {
@@ -131,10 +133,19 @@ func (w *FiberWebserver) InitializeWebserver() error {
 			return c.SendStatus(http.StatusInternalServerError)
 		}
 
-		return c.SendStatus(http.StatusOK)
-	})
+		if w.shouldSendHTML(agentString) {
+			return c.Status(http.StatusOK).Render("main", fiber.Map{
+				"message": message,
+			})
+		} else {
+			return c.SendStatus(http.StatusOK)
+		}
+	}
+}
 
-	return nil
+func (w *FiberWebserver) shouldSendHTML(userAgent string) bool {
+	agent := uasurfer.Parse(userAgent)
+	return agent.Browser.Name != uasurfer.BrowserUnknown
 }
 
 // Run runs the webserver
