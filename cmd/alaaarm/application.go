@@ -50,8 +50,9 @@ var defaultConfig = &Configuration{
 		APIKey: "TelegramApiKey",
 	},
 	Web: &web.Configuration{
-		Domain: "example.com",
-		Port:   "3000",
+		Domain:        "example.com",
+		Port:          "3000",
+		ViewDirectory: "./web/templates",
 	},
 }
 
