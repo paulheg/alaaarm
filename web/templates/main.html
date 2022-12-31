@@ -3,60 +3,79 @@
 <html lang="en">
 
 <head>
-    <title>Alaaarm Admin Panel</title>
+    <title>Alaaarm</title>
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="/static/css/material.min.css">
-    <link rel="stylesheet" href="/static/css/material.icons.css">
-    <script defer src="/static/js/material.min.js"></script>
+
+    <style >
+        html {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .flex-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+        }
+
+        .flex-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+        }
+
+        .round-box {
+            padding: 20px;
+            border-radius: 25px;
+            color: white;
+            background-color: black;
+        }
+
+        .message-box {
+            border-radius: 10px;
+            background-color: grey;
+            padding: 2px;
+            margin-top: 2px;
+            margin-bottom: 2px;
+            padding-left: 10px;
+            padding-right: 10px;
+            max-width: fit-content;
+            min-width: 80%;
+        }
+
+        .ok {
+            background-color: rgb(25, 145, 45);
+        }
+
+        .info {
+            background-color: cornflowerblue;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="mdl-grid">
-        <div class="mdl-cell mdl-cell--8-col">
-            <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
-                <thead>
-                    <tr>
-                        <th class="mdl-data-table__cell--non-numeric">Username</th>
-                        <th class="mdl-data-table__cell--non-numeric">Status</th>
-                        <th class="mdl-data-table__cell--non-numeric">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="mdl-data-table__cell--non-numeric">Acrylic (Transparent)</td>
-                        <td>25</td>
-                        <td>$2.90</td>
-                    </tr>
-                    <tr>
-                        <td class="mdl-data-table__cell--non-numeric">Plywood (Birch)</td>
-                        <td>50</td>
-                        <td>$1.25</td>
-                    </tr>
-                    <tr>
-                        <td class="mdl-data-table__cell--non-numeric">Laminate (Gold on Blue)</td>
-                        <td>10</td>
-                        <td>$2.35</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="mdl-cell mdl-cell--4-col">
-            <form action="/sendtoall" method="POST">
-                <div class="mdl-textfield mdl-js-textfield">
-                    <input class="mdl-textfield__input" type="text" id="message" name="message">
-                    <label class="mdl-textfield__label" for="message">Message...</label>
+    <div class="flex-column">
+        <div class="flex-row">
+            <div class="round-box">
+                <h1>Sent alert</h1>
+                <p>Your request was successfully executed.</p>
+                <div class="message-box ok">
+                    <p>
+                        <span class="bold">Message:</span>
+                        {{.message}}
+                    </p>
                 </div>
-                <button class="mdl-button mdl-js-button mdl-button--raised" type="submit">
-                    Send to all...
-                </button>
-            </form>
+            </div>
         </div>
     </div>
-
-
 </body>
-
 </html>
-
 
 {{end}}

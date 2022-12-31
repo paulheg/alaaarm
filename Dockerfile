@@ -15,6 +15,7 @@ FROM alpine:latest
 WORKDIR /
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/migration/ /migration
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/localizations/ /localizations
+COPY --from=builder /go/src/github.com/paulheg/alaaarm/web/templates /web/templates
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
 
 RUN mkdir config
