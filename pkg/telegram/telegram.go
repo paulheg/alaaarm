@@ -60,7 +60,7 @@ func NewTelegram(config *Configuration, repository repository.Repository, webser
 	// connect to telegram
 	bot, err := tgbotapi.NewBotAPI(config.APIKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while connecting to telegram with token: %w", err)
 	}
 
 	t := &Telegram{

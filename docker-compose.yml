@@ -5,8 +5,8 @@ services:
     image: postgres
     container_name: alarm-db
     restart: always
-    # ports:
-    #     - 54000:5432
+    ports:
+        - 54000:5432
     networks: 
       - alarm-network
     environment:

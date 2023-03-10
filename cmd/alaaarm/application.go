@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 
@@ -169,22 +170,22 @@ func (a *Application) Initialize() error {
 
 	err = a.initializeLibrary()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not initialize languages: %w", err)
 	}
 
 	err = a.initializeDatabase()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not initialize database: %w", err)
 	}
 
 	err = a.initializeWebserver()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not initialize webserver: %w", err)
 	}
 
 	err = a.initializeTelegram()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not initialize telegram: %w", err)
 	}
 
 	a.web.RegisterEndpoint("telegram", a.telegram)
