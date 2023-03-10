@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  alarm-db:
+    image: postgres
+    container_name: alarm-db
+    restart: always
+    # ports:
+    #     - 54000:5432
+    networks: 
+      - alarm-network
+    environment:
+      POSTGRES_DB: "alarm"
+      POSTGRES_USER: "alarm"
+      POSTGRES_PASSWORD: "strongdbpassword"
+  alarm: 
+    image: alaaarm:latest
+    container_name: alarm-container
+    restart: always
+    depends_on:
+      - alarm-db
+    ports:
+      - "443:3000"
+    networks: 
+      - alarm-network
+    environment:
+      TELEGRAM_API_KEY: YOUR_TELEGRAM_API_KEY
+      DOMAIN: example.com
+      CONNECTION_STRING: postgres://alarm:strongdbpassword@alarm-db:5432/alarm?sslmode=disable
+      LOG_LEVEL: debug
+      PORT: 3000
+
+networks: 
+  alarm-network:
+    name: alarm-network
+    

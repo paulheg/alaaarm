@@ -18,8 +18,7 @@ COPY --from=builder /go/src/github.com/paulheg/alaaarm/localizations/ /localizat
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/web/templates /web/templates
 COPY --from=builder /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/server .
 
-RUN mkdir config
-RUN ./server config create -config=./config/config.json
+RUN mkdir config && ./server config create -config=./config/config.json
 
 ENV PORT=3000
 EXPOSE 3000
