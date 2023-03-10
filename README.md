@@ -1,10 +1,12 @@
 # 👨‍🚒 ALAAARM
 
-Alaaarm is essentially a Telegram bot with a web interface, trough which you can trigger notifications.
+Alaaarm is essentially a Telegram bot with a minimal web API, trough which you can trigger notifications.
 
-With it you can send notifications to a smartphone without much setup, from different sources with little integration effort. Users are enabled to create custom alerts trough the Telegram bot. Each alert is triggered trough the public web interface using a token as an unique identifier.
+With it you can send notifications to a smartphone without much setup, from different sources with little integration effort.
+Users are enabled to create custom alerts trough the Telegram bot.
+Each alert is triggered trough the public web interface using a token as an unique identifier.
 
-Try it out with: https://t.me/AlaarmAlaaarmBot
+Give it a try on: https://t.me/AlaarmAlaaarmBot
 
 ## Example
 
@@ -33,7 +35,7 @@ There are two options to let multiple users receive the same alert:
 
 > HELP!! I am getting spammed, the trigger URL / token got leaked.
 
-Don't worry, you can change the token of an alert with the command `\change_alert_token`, which leads to the old URL getting invalid and therefore you wont receive any messages from it.
+Don't worry, you can change the token of an alert with the command `/change_alert_token`, which leads to the old URL getting invalid and therefore you wont receive any messages from it.
 
 > What does the number next to 🗿 mean?
 
@@ -43,12 +45,14 @@ This is the number of subscribed channels / users to your alert.
 
 | Command               | Description                                       |
 | --------------------- | ------------------------------------------------- |
-| `\create`             | create new alert                                  |
-| `\delete`             | delete an alert you created                       |
-| `\info`               | get info about your created and subscribed alerts |
-| `\alert_info`         | get detailed info about an alert                  |
-| `\unsubscribe`        | unsubscribe from an alert you were invited to     |
-| `\change_alert_token` | change the alert token                            |
-| `\invite`             | create an invitation link for your alert          |
-| `\delete_invite`      | delete a previously created invite                |
-| `\exit`               | exit current action and reset the dialog          |
+| `/start`              | start talking to the bot                          |
+| `/create`             | create new alert                                  |
+| `/delete`             | delete an alert you created                       |
+| `/info`               | get info about your created and subscribed alerts |
+| `/alert_info`         | get detailed info about an alert                  |
+| `/change_alert_token` | change the alert token                            |
+| `/invite`             | create an invitation link for your alert          |
+| `/delete_invite`      | delete a previously created invite                |
+| `/mute`               | Don't get notified from your own alert            |
+| `/unsubscribe`        | unsubscribe from an alert you were invited to     |
+| `/exit`               | exit current action and reset the dialog          |
