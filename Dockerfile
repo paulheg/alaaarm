@@ -1,5 +1,7 @@
 # use go image
-FROM golang:latest AS builder
+FROM --platform=$BUILDPLATFORM golang:latest AS builder
+ARG TARGETOS
+ARG TARGETARCH
 
 # copy source files to GO HOME
 COPY . /go/src/github.com/paulheg/alaaarm
@@ -9,7 +11,7 @@ WORKDIR /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/
 RUN go mod download
 
 # build
-RUN CGO_ENABLED=0 GOOS=linux go build -o server /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/ 
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o server /go/src/github.com/paulheg/alaaarm/cmd/alaaarm/ 
 
 FROM alpine:latest
 WORKDIR /
